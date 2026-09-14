@@ -1,14 +1,19 @@
-RewriteEngine On
+<IfModule mod_rewrite.c>
+    RewriteEngine On
 
-# 1. Abaikan file atau folder fisik nyata secara langsung
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+    # Kosongkan atau abaikan RewriteBase agar relatif terhadap folder .htaccess berada
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
 
-# 2. Routing khusus clean URL login & logout
-RewriteRule ^course/?$ course.php [L,QSA]
+    # Routing API Auth OTP
+    RewriteRule ^api/auth/send-otp/?$ api/auth/send-otp.php [QSA,L]
+    RewriteRule ^api/auth/verify-otp/?$ api/auth/verify-otp.php [QSA,L]
 
-# 3. Sembunyikan ekstensi .php untuk file lainnya
-RewriteCond %{DOCUMENT_ROOT}/$1.php -f [OR]
-RewriteCond %{REQUEST_FILENAME}.php -f
-RewriteRule ^([^/]+)/?$ $1.php [L,QSA]
+    # Routing API OAuth Google
+    RewriteRule ^api/auth/google/redirect/?$ api/auth/google-redirect.php [QSA,L]
+    RewriteRule ^api/auth/google/callback/?$ api/auth/google-callback.php [QSA,L]
+
+    # Routing Halaman Course
+    RewriteRule ^course/([0-9]+)/?$ course.php?id=$1 [QSA,L]
+    RewriteRule ^course/([a-zA-Z0-9-]+)/?$ course.php?slug=$1 [QSA,L]
+</IfModule>
