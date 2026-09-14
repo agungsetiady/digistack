@@ -31,3 +31,11 @@ function admin_url($path = '') {
     
     return rtrim($basePath, '/') . '/' . ltrim($path, '/');
 }
+
+define('SMTP_HOST', 'smtp.gmail.com');
+define('SMTP_PORT', 587);              // 587 = STARTTLS, 465 = SSL
+define('SMTP_SECURE', 'tls');          // 'tls' atau 'ssl'
+define('SMTP_USER', 'aguphia@gmail.com');
+define('SMTP_PASS', 'app-password');   // Gmail: WAJIB App Password, bukan password akun biasa
+define('SMTP_FROM_EMAIL', 'aguphia@gmail.com');
+define('SMTP_FROM_NAME', 'DigiStack');

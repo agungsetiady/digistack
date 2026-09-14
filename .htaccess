@@ -1,9 +1,8 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-
-    # Kosongkan atau abaikan RewriteBase agar relatif terhadap folder .htaccess berada
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    RewriteCond %{HTTP:Authorization} ^(.+)$
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
 
     # Routing API Auth OTP
     RewriteRule ^api/auth/send-otp/?$ api/auth/send-otp.php [QSA,L]
@@ -13,7 +12,16 @@
     RewriteRule ^api/auth/google/redirect/?$ api/auth/google-redirect.php [QSA,L]
     RewriteRule ^api/auth/google/callback/?$ api/auth/google-callback.php [QSA,L]
 
-    # Routing Halaman Course
+    # Routing API OAuth GitHub
+    RewriteRule ^api/auth/github/redirect/?$ api/auth/github-redirect.php [QSA,L]
+    RewriteRule ^api/auth/github/callback/?$ api/auth/github-callback.php [QSA,L]
+
+    # Routing Halaman Course dengan Topic (Clean URL)
+    # Format: /course/slug-course/topic/37  ATAU  /course/slug-course/37
+    RewriteRule ^course/([a-zA-Z0-9-]+)/topic/([0-9]+)/?$ course.php?slug=$1&topic=$2 [QSA,L]
+    RewriteRule ^course/([a-zA-Z0-9-]+)/([0-9]+)/?$ course.php?slug=$1&topic=$2 [QSA,L]
+
+    # Routing Halaman Course Standard (tanpa topic)
     RewriteRule ^course/([0-9]+)/?$ course.php?id=$1 [QSA,L]
     RewriteRule ^course/([a-zA-Z0-9-]+)/?$ course.php?slug=$1 [QSA,L]
 </IfModule>

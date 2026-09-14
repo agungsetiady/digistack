@@ -5,6 +5,9 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST");
 
 require_once '../../admin/config.php';
+if (file_exists(__DIR__ . '/../../admin/oauth-config.php')) {
+    require_once '../../admin/oauth-config.php';
+}
 require_once '../jwt.php'; // Naik 1 level ke api/jwt.php
 
 $data = json_decode(file_get_contents("php://input"));
@@ -15,6 +18,8 @@ if (empty($data->email) || empty($data->otp)) {
     exit;
 }
 
+$email = strtolower(trim($data->email));
+
 try {
     // 1. Cek OTP di email_otps
     $query = "SELECT id FROM email_otps 
@@ -22,7 +27,7 @@ try {
               ORDER BY id DESC LIMIT 1";
     $stmt = $pdo->prepare($query);
     $stmt->execute([
-        ':email' => $data->email,
+        ':email' => $email,
         ':otp'   => $data->otp
     ]);
 
@@ -32,42 +37,41 @@ try {
         $updateStmt = $pdo->prepare("UPDATE email_otps SET is_used = 1 WHERE id = :id");
         $updateStmt->execute([':id' => $otp_record['id']]);
 
-        // 2. Cek / Create di tabel admins (karena DB digistack tidak ada tabel users)
-        $userStmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE email = :email");
-        $userStmt->execute([':email' => $data->email]);
+        // 2. Cek / Create di tabel users (bukan admins — admins khusus untuk dashboard admin)
+        $userStmt = $pdo->prepare("SELECT id, name, email, avatar, auth_provider FROM users WHERE email = :email");
+        $userStmt->execute([':email' => $email]);
 
         if ($userStmt->rowCount() == 0) {
-            $username = explode('@', $data->email)[0];
-            $password = password_hash(bin2hex(random_bytes(8)), PASSWORD_DEFAULT);
-            $role     = 'admin';
-            
-            $createUser = $pdo->prepare("INSERT INTO admins (username, email, password_hash, role) VALUES (:username, :email, :password, :role)");
+            $name = explode('@', $email)[0];
+
+            $createUser = $pdo->prepare(
+                "INSERT INTO users (name, email, password, auth_provider) 
+                 VALUES (:name, :email, NULL, 'local')"
+            );
             $createUser->execute([
-                ':username' => $username,
-                ':email'    => $data->email,
-                ':password' => $password,
-                ':role'     => $role
+                ':name'  => $name,
+                ':email' => $email,
             ]);
-            
-            $user_id   = $pdo->lastInsertId();
-            $user_name = $username;
-            $user_role = $role;
+
+            $user_id     = $pdo->lastInsertId();
+            $user_name   = $name;
+            $user_avatar = null;
         } else {
-            $user      = $userStmt->fetch(PDO::FETCH_ASSOC);
-            $user_id   = $user['id'];
-            $user_name = $user['username'];
-            $user_role = $user['role'];
+            $user        = $userStmt->fetch(PDO::FETCH_ASSOC);
+            $user_id     = $user['id'];
+            $user_name   = $user['name'];
+            $user_avatar = $user['avatar'];
         }
 
         // 3. Issue Token JWT via JwtHelper
         $payload = [
-            "iss"   => "digistack",
-            "sub"   => $user_id,
-            "email" => $data->email,
-            "name"  => $user_name,
-            "role"  => $user_role,
-            "iat"   => time(),
-            "exp"   => time() + (60 * 60 * 24 * 7)
+            "iss"    => "digistack",
+            "sub"    => $user_id,
+            "email"  => $email,
+            "name"   => $user_name,
+            "avatar" => $user_avatar,
+            "iat"    => time(),
+            "exp"    => time() + (60 * 60 * 24 * 7)
         ];
         $token = JwtHelper::generate_jwt($payload);
 
@@ -77,10 +81,10 @@ try {
             "message" => "Verifikasi berhasil.",
             "token"   => $token,
             "user"    => [
-                "id"       => $user_id,
-                "username" => $user_name,
-                "email"    => $data->email,
-                "role"     => $user_role
+                "id"     => $user_id,
+                "name"   => $user_name,
+                "email"  => $email,
+                "avatar" => $user_avatar
             ]
         ]);
     } else {

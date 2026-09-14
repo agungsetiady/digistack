@@ -12,25 +12,46 @@ const getBaseUrl = () => {
 
 const API_BASE_URL = getBaseUrl();
 
-// 2. Control Modal UI
+// 2. Control Modal UI (dengan animasi fade + scale)
 function openAuthModal() {
   const modal = document.getElementById('auth-modal');
-  if (modal) {
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.style.overflow = 'hidden'; // Lock scroll
-  }
+  const card = document.getElementById('auth-modal-card');
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.style.overflow = 'hidden'; // Lock scroll
+
+  // Trigger transition di frame berikutnya
+  requestAnimationFrame(() => {
+    modal.classList.remove('opacity-0');
+    if (card) card.classList.remove('scale-95', 'translate-y-2');
+  });
 }
 
 function closeAuthModal() {
   const modal = document.getElementById('auth-modal');
-  if (modal) {
+  const card = document.getElementById('auth-modal-card');
+  if (!modal) return;
+
+  modal.classList.add('opacity-0');
+  if (card) card.classList.add('scale-95', 'translate-y-2');
+
+  setTimeout(() => {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
     document.body.style.overflow = ''; // Restore scroll
     resetAuthStep();
-  }
+  }, 250);
 }
+
+// Tutup modal dengan tombol ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('auth-modal');
+    if (modal && !modal.classList.contains('hidden')) closeAuthModal();
+  }
+});
 
 function resetAuthStep() {
   const emailForm = document.getElementById('step-email-form');
@@ -67,6 +88,143 @@ function showAlert(message, type = 'error') {
 function handleOAuth(provider) {
   window.location.href = `${API_BASE_URL}/auth/${provider}/redirect`;
 }
+
+// 4b. Session helpers ------------------------------------------------
+
+/**
+ * Decode base64url (dipakai JWT) dengan aman.
+ *
+ * BUG LAMA: `atob()` dipanggil langsung tanpa mengembalikan padding '=' yang
+ * memang sengaja dibuang saat encoding di backend (lihat JwtHelper::base64UrlEncode
+ * di api/jwt.php). Base64 string yang panjangnya tidak kelipatan 4 akan membuat
+ * `atob()` melempar error "not correctly encoded" — dan karena dipanggil di dalam
+ * try/catch pada getStoredUser(), error ini tertangkap diam-diam lalu fungsi
+ * return `null`, seolah-olah user belum login. Ini tidak selalu terjadi, tergantung
+ * panjang payload (nama/email user tsb), makanya bug-nya terasa "kadang-kadang".
+ * Fix: tambahkan kembali padding sebelum decode, dan decode UTF-8 dengan benar
+ * (supaya nama dengan karakter non-ASCII dari Google/GitHub tidak rusak).
+ */
+function base64UrlDecode(str) {
+  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const padLength = base64.length % 4;
+  if (padLength === 2) base64 += '==';
+  else if (padLength === 3) base64 += '=';
+  else if (padLength !== 0) throw new Error('Base64url tidak valid.');
+
+  const binary = atob(base64);
+  const percentEncoded = binary
+    .split('')
+    .map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+    .join('');
+  return decodeURIComponent(percentEncoded);
+}
+
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('digistack_user');
+    const token = localStorage.getItem('digistack_token');
+    if (!raw || !token) return null;
+
+    // Cek token belum expired (baca payload JWT tanpa perlu verifikasi
+    // signature di client — verifikasi asli tetap di server tiap request API).
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(base64UrlDecode(parts[1]));
+      if (payload.exp && Date.now() / 1000 > payload.exp) {
+        clearSession();
+        return null;
+      }
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem('digistack_token');
+  localStorage.removeItem('digistack_user');
+}
+
+function logoutUser() {
+  clearSession();
+  window.location.reload();
+}
+
+function initials(name) {
+  if (!name) return '?';
+  return name.trim().charAt(0).toUpperCase();
+}
+
+// 4c. Render tombol "Masuk" ATAU widget profil user di header ---------
+function renderAuthWidget() {
+  const widget = document.getElementById('user-profile-widget');
+  if (!widget) return;
+
+  const user = getStoredUser();
+
+  if (!user) {
+    widget.innerHTML = `
+      <button onclick="openAuthModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white/80 hover:bg-white border border-slate-200/80 hover:border-slate-300 shadow-sm transition-all hover:shadow">
+        Masuk / Daftar
+      </button>`;
+    return;
+  }
+
+  const avatarHtml = user.avatar
+    ? `<img src="${user.avatar}" alt="${user.name}" class="w-8 h-8 rounded-full object-cover ring-2 ring-white/60">`
+    : `<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xs font-bold ring-2 ring-white/60">${initials(user.name)}</div>`;
+
+  widget.innerHTML = `
+    <div class="relative">
+      <button onclick="toggleUserMenu(event)" id="user-menu-trigger" class="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 shadow-sm transition-all hover:shadow">
+        ${avatarHtml}
+        <span class="text-sm font-semibold text-slate-700 max-w-[110px] truncate">${user.name}</span>
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="user-menu-dropdown" class="hidden absolute right-0 mt-2 w-52 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl overflow-hidden z-50">
+        <div class="px-4 py-3 border-b border-slate-100">
+          <p class="text-sm font-bold text-slate-800 truncate">${user.name}</p>
+          <p class="text-xs text-slate-500 truncate">${user.email}</p>
+        </div>
+        <button onclick="logoutUser()" class="w-full text-left px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Keluar
+        </button>
+      </div>
+    </div>`;
+}
+
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById('user-menu-dropdown');
+  if (dropdown) dropdown.classList.toggle('hidden');
+}
+
+document.addEventListener('click', () => {
+  const dropdown = document.getElementById('user-menu-dropdown');
+  if (dropdown) dropdown.classList.add('hidden');
+});
+
+// 4d. Tampilkan pesan error dari redirect OAuth (mis. GitHub belum dikonfigurasi)
+function showOAuthErrorFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('auth_error');
+  if (!err) return;
+
+  openAuthModal();
+  showAlert(decodeURIComponent(err), 'error');
+
+  // Bersihkan query string supaya pesan tidak muncul lagi saat refresh
+  params.delete('auth_error');
+  const newUrl = window.location.pathname + (params.toString() ? `?${params}` : '');
+  window.history.replaceState({}, document.title, newUrl);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderAuthWidget();
+  showOAuthErrorFromQuery();
+});
 
 // 5. Submit Email & Request OTP
 async function submitEmail(event) {

@@ -1,11 +1,12 @@
 <!-- components/auth-modal.php -->
-<div id="auth-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md hidden items-center justify-center p-4 z-50 transition-all duration-300">
+<div id="auth-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md hidden items-center justify-center p-4 z-50 opacity-0 transition-opacity duration-300">
   
   <!-- Modal Card (Glassmorphism Concept) -->
-  <div class="bg-white/90 dark:bg-slate-900/90 border border-white/40 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl w-full max-w-md p-7 relative overflow-hidden transition-all transform scale-100">
+  <div id="auth-modal-card" class="bg-white/90 dark:bg-slate-900/90 border border-white/40 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl w-full max-w-md p-7 relative overflow-hidden transition-all duration-300 transform scale-95 translate-y-2">
     
     <!-- Ambient Inner Light Effect -->
-    <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none animate-pulse"></div>
+    <div class="absolute -bottom-24 -left-24 w-40 h-40 bg-indigo-400/10 rounded-full blur-2xl pointer-events-none"></div>
 
     <!-- Close Button -->
     <button type="button" onclick="closeAuthModal()" class="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition">

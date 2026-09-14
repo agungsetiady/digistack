@@ -1,9 +1,21 @@
 <?php
 // helpers/jwt.php
+if (!defined('JWT_SECRET') && file_exists(__DIR__ . '/../admin/oauth-config.php')) {
+    require_once __DIR__ . '/../admin/oauth-config.php';
+}
 
 class JwtHelper {
-    // Kunci rahasia untuk signature JWT. Ubah dengan string rahasia milik Anda.
-    private static $secret_key = 'd1g1st4ck_s3cr3t_k3y_2026_xYz!';
+    // Kunci rahasia untuk signature JWT.
+    // Didefinisikan sebagai konstanta JWT_SECRET di admin/oauth-config.php
+    // (atau admin/config.php). Nilai di bawah ini hanya fallback darurat.
+    private static $secret_key = null;
+
+    private static function secret(): string {
+        if (self::$secret_key === null) {
+            self::$secret_key = defined('JWT_SECRET') ? JWT_SECRET : 'd1g1st4ck_s3cr3t_k3y_2026_xYz!';
+        }
+        return self::$secret_key;
+    }
 
     /**
      * Generate JWT Token
@@ -17,7 +29,7 @@ class JwtHelper {
         $base64UrlHeader = self::base64UrlEncode($header);
         $base64UrlPayload = self::base64UrlEncode(json_encode($payload));
 
-        $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, self::$secret_key, true);
+        $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, self::secret(), true);
         $base64UrlSignature = self::base64UrlEncode($signature);
 
         return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
@@ -42,7 +54,7 @@ class JwtHelper {
         // Verifikasi Signature
         $base64UrlHeader = self::base64UrlEncode($header);
         $base64UrlPayload = self::base64UrlEncode($payload);
-        $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, self::$secret_key, true);
+        $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, self::secret(), true);
         $base64UrlSignature = self::base64UrlEncode($signature);
 
         if ($base64UrlSignature !== $signature_provided) {
