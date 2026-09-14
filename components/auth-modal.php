@@ -17,11 +17,11 @@
 
     <!-- Header Title -->
     <div class="mb-6">
-      <div class="w-10 h-10 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3 font-bold text-lg">
-        D
+      <div class="w-10 h-10 flex items-center justify-center mb-3 font-bold text-lg">
+        <img src="<?= $base; ?>/assets/img/aguphia-icon.png" alt="DigiStack Logo">
       </div>
       <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Masuk ke DigiStack</h2>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Pilih metode autentikasi untuk mengakses modul.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Pilih metode autentikasi untuk mengakses e-learning.</p>
     </div>
 
     <!-- Alert Message Container -->

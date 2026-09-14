@@ -89,21 +89,6 @@ function handleOAuth(provider) {
   window.location.href = `${API_BASE_URL}/auth/${provider}/redirect`;
 }
 
-// 4b. Session helpers ------------------------------------------------
-
-/**
- * Decode base64url (dipakai JWT) dengan aman.
- *
- * BUG LAMA: `atob()` dipanggil langsung tanpa mengembalikan padding '=' yang
- * memang sengaja dibuang saat encoding di backend (lihat JwtHelper::base64UrlEncode
- * di api/jwt.php). Base64 string yang panjangnya tidak kelipatan 4 akan membuat
- * `atob()` melempar error "not correctly encoded" — dan karena dipanggil di dalam
- * try/catch pada getStoredUser(), error ini tertangkap diam-diam lalu fungsi
- * return `null`, seolah-olah user belum login. Ini tidak selalu terjadi, tergantung
- * panjang payload (nama/email user tsb), makanya bug-nya terasa "kadang-kadang".
- * Fix: tambahkan kembali padding sebelum decode, dan decode UTF-8 dengan benar
- * (supaya nama dengan karakter non-ASCII dari Google/GitHub tidak rusak).
- */
 function base64UrlDecode(str) {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   const padLength = base64.length % 4;
@@ -165,8 +150,8 @@ function renderAuthWidget() {
 
   if (!user) {
     widget.innerHTML = `
-      <button onclick="openAuthModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white/80 hover:bg-white border border-slate-200/80 hover:border-slate-300 shadow-sm transition-all hover:shadow">
-        Masuk / Daftar
+      <button onclick="openAuthModal()" class="px-3 py-1 rounded-xl text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-white/90 border border-slate-200/80 hover:border-slate-300 shadow-sm transition-all hover:shadow">
+        Masuk
       </button>`;
     return;
   }

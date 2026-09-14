@@ -14,10 +14,10 @@ $base = '/digistack';
   <base href="<?= $base; ?>/">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DigiStack - Learning Management System</title>
-  <!-- Tailwind + plugin Typography (dibutuhkan untuk class `prose` merender Markdown) -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-
-  <!-- Markdown renderer & syntax highlighting untuk konten materi -->
+  <link rel="icon" type="image/png" sizes="32x32" href="<?= $base; ?>/assets/img/aguphia-icon.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="<?= $base; ?>/assets/img/aguphia-icon.png">
+  <link rel="apple-touch-icon" href="<?= $base; ?>/assets/img/aguphia-icon.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -56,7 +56,10 @@ $base = '/digistack';
         <button id="toggle-sidebar" class="text-gray-500 hover:text-gray-700 dark:hover:text-white focus:outline-none">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <a href="./" class="text-xl font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">DigiStack</a>
+        <a href="<?= $base; ?>/" class="flex items-center gap-2 text-xl font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">
+          <img src="<?= $base; ?>/assets/img/aguphia-icon.png" class="w-8 h-8 object-contain" alt="DigiStack Logo">
+          <span>DigiStack</span>
+        </a>
         <span class="hidden md:inline text-gray-300 dark:text-gray-600">|</span>
         <span id="current-topic-breadcrumb" class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 truncate max-w-full">Memuat Topik...</span>
       </div>
@@ -125,7 +128,7 @@ $base = '/digistack';
                 <strong
                   class="block text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1"
                 >
-                  TL;DR
+                  Ringkasan
                 </strong>
 
                 <span id="topic-tldr-text"></span>

@@ -13,6 +13,20 @@ function iconFor(icon) {
   return COURSE_ICONS[icon] || COURSE_ICONS.default;
 }
 
+// Render cover image jika ada (field `cover_image` di tabel courses = nama file,
+// disimpan di folder assets/img/). Fallback ke kotak icon emoji jika kosong/gagal load.
+function coverImageHtml(course) {
+  if (!course.cover_image) {
+    return `<div class="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center mb-4 text-xl">${iconFor(course.icon)}</div>`;
+  }
+  const src = `assets/img/${encodeURIComponent(course.cover_image)}`;
+  return `
+    <div class="w-full h-36 rounded-xl overflow-hidden mb-4 bg-blue-500/20 border border-blue-400/30">
+      <img src="${src}" alt="${escapeHtml(course.title)}" class="w-full h-full object-cover"
+        onerror="this.parentElement.outerHTML = '<div class=&quot;w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center mb-4 text-xl&quot;>${iconFor(course.icon)}</div>';">
+    </div>`;
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.innerText = str ?? '';
@@ -83,9 +97,7 @@ function renderCourseCatalog(courses) {
 
     return `
       <div class="group flex flex-col p-6 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 backdrop-blur-xl shadow-lg transition-all duration-300 hover:-translate-y-1">
-        <div class="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center mb-4 text-xl">
-          ${iconFor(course.icon)}
-        </div>
+        ${coverImageHtml(course)}
         <h3 class="text-white font-bold text-lg mb-1.5 leading-snug">${escapeHtml(course.title)}</h3>
         <p class="text-sm text-slate-300/90 leading-relaxed mb-4 flex-1">${escapeHtml(course.description || 'Belum ada deskripsi.')}</p>
         <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-4">
