@@ -8,7 +8,7 @@
   <div class="h-16 min-h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 overflow-hidden">
     <div id="sidebar-header-content" class="min-w-0 flex-1 sidebar-text">
       <span class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider whitespace-nowrap block">
-        Daftar Modul
+        Anda Sedang Membaca
       </span>
       <h2 id="course-title" class="text-sm font-bold text-gray-800 dark:text-white truncate">
         Memuat Kursus...

@@ -1,25 +1,5 @@
 <?php
 // api/mailer.php
-// Mailer minimal tanpa dependency (tanpa perlu Composer/PHPMailer) untuk mengirim
-// email OTP. Mendukung SMTP (disarankan, termasuk STARTTLS/SSL + AUTH LOGIN),
-// dengan fallback otomatis ke fungsi mail() bawaan PHP jika SMTP tidak dikonfigurasi.
-//
-// PENTING: fungsi mail() bawaan PHP HANYA jalan jika server sudah punya
-// sendmail/MTA terkonfigurasi. Di local dev (XAMPP/Laragon/WAMP) ini BIASANYA
-// TIDAK aktif secara default -- makanya email OTP terasa "tidak terkirim".
-// Solusi paling reliable: konfigurasi SMTP (Gmail App Password, Mailtrap,
-// provider seperti Brevo/SendGrid, dll) lewat konstanta di admin/config.php:
-//
-//   define('SMTP_HOST', 'smtp.gmail.com');
-//   define('SMTP_PORT', 587);            // 587 = STARTTLS, 465 = SSL langsung
-//   define('SMTP_SECURE', 'tls');        // 'tls' | 'ssl' | ''
-//   define('SMTP_USER', 'akun@gmail.com');
-//   define('SMTP_PASS', 'app-password');  // Gmail: WAJIB App Password, bukan password akun
-//   define('SMTP_FROM_EMAIL', 'no-reply@digistack.test');
-//   define('SMTP_FROM_NAME', 'DigiStack');
-//
-// Jika SMTP_HOST belum didefinisikan, Mailer::send() otomatis fallback ke mail().
-
 class Mailer {
 
     /**

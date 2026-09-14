@@ -35,7 +35,7 @@ function admin_url($path = '') {
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);              // 587 = STARTTLS, 465 = SSL
 define('SMTP_SECURE', 'tls');          // 'tls' atau 'ssl'
-define('SMTP_USER', 'aguphia@gmail.com');
-define('SMTP_PASS', 'app-password');   // Gmail: WAJIB App Password, bukan password akun biasa
-define('SMTP_FROM_EMAIL', 'aguphia@gmail.com');
+define('SMTP_USER', 'pusatdatacloud@gmail.com');
+define('SMTP_PASS', 'eyogqypfvmxpvbht');   // Gmail: WAJIB App Password, bukan password akun biasa
+define('SMTP_FROM_EMAIL', 'pusatdatacloud@gmail.com');
 define('SMTP_FROM_NAME', 'DigiStack');

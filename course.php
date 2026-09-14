@@ -4,13 +4,16 @@ $courseId   = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $initialTopicId = isset($_GET['topic']) ? (int) $_GET['topic'] : 0;
 
 $hasCourseRef = ($courseSlug !== '' || $courseId > 0);
+
+$base = '/digistack';
 ?>
 <!DOCTYPE html>
 <html lang="id" class="h-full">
 <head>
   <meta charset="UTF-8">
+  <base href="<?= $base; ?>/">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DigiStack - LMS Player</title>
+  <title>DigiStack - Learning Management System</title>
   <!-- Tailwind + plugin Typography (dibutuhkan untuk class `prose` merender Markdown) -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 
@@ -53,9 +56,9 @@ $hasCourseRef = ($courseSlug !== '' || $courseId > 0);
         <button id="toggle-sidebar" class="text-gray-500 hover:text-gray-700 dark:hover:text-white focus:outline-none">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <a href="index.php" class="text-xl font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">DigiStack</a>
+        <a href="./" class="text-xl font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">DigiStack</a>
         <span class="hidden md:inline text-gray-300 dark:text-gray-600">|</span>
-        <span id="current-topic-breadcrumb" class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 truncate max-w-xs">Memuat Topik...</span>
+        <span id="current-topic-breadcrumb" class="hidden md:inline text-sm font-medium text-gray-600 dark:text-gray-400 truncate max-w-full">Memuat Topik...</span>
       </div>
 
       <!-- User Action / Profile -->
@@ -203,9 +206,9 @@ $hasCourseRef = ($courseSlug !== '' || $courseId > 0);
   <?php include __DIR__ . '/components/auth-modal.php'; ?>
 
   <!-- Scripts -->
-  <script src="assets/js/auth.js"></script>
+  <script src="<?= $base; ?>/assets/js/auth.js"></script>
   <?php if ($hasCourseRef): ?>
-  <script src="assets/js/course-viewer.js"></script>
+  <script src="<?= $base; ?>/assets/js/course-viewer.js?v=1.2"></script>
   <?php endif; ?>
 </body>
 </html>

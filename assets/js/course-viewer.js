@@ -130,7 +130,8 @@ function initSidebarToggle() {
 // 2. Muat struktur course (modules + topics) dari API
 async function loadCourse() {
   const app = appEl();
-  const slug = app.dataset.courseSlug;
+  const rawSlug = app.dataset.courseSlug || '';
+  const slug = rawSlug.split('/').pop();
   const id = parseInt(app.dataset.courseId, 10) || 0;
   const initialTopic = parseInt(app.dataset.initialTopic, 10) || 0;
 
@@ -207,26 +208,26 @@ function renderCourseSidebar() {
     const moduleEl = document.createElement('div');
 
     const topicsHtml = (module.topics || []).map((t) => `
-      <a href="javascript:void(0)" onclick="navigateToTopic(${t.id})"
+      <button type="button" onclick="navigateToTopic(${t.id})"
          id="topic-btn-${t.id}"
-         class="px-6 py-2.5 flex items-center justify-between text-xs font-medium transition ${t.id === currentTopicId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-l-4 border-blue-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'}">
-        <span class="flex items-center gap-2 truncate">
-          ${t.completed ? '<svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' : ''}
+         class="w-full text-left px-6 py-2.5 flex items-start justify-between text-xs font-medium transition ${t.id === currentTopicId ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-l-4 border-blue-600 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'}">
+        <span class="flex items-start gap-2 break-words leading-tight">
+          ${t.completed ? '<svg class="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' : ''}
           ${escapeHtml(t.title)}
         </span>
-        <span class="text-gray-400 text-[10px] ml-2 flex-shrink-0">${t.estimated_read_time}m</span>
-      </a>
+        <span class="text-gray-400 text-[10px] ml-2 flex-shrink-0 mt-0.5">${t.estimated_read_time}m</span>
+      </button>
     `).join('');
 
     const isActiveModule = (module.topics || []).some(t => t.id === currentTopicId) || (index === 0 && currentTopicId === null);
 
     moduleEl.innerHTML = `
-      <div>
-        <button onclick="toggleModule(${module.id})" class="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/40 text-left font-semibold text-xs text-gray-700 dark:text-gray-200">
-          <span class="truncate pr-2">${escapeHtml(module.title)}</span>
-          <svg id="arrow-${module.id}" class="w-4 h-4 flex-shrink-0 transform transition-transform duration-200 ${isActiveModule ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      <div class="border-b border-gray-100 dark:border-gray-800">
+        <!-- Background Header Modul dibuat nuansa Lavender (Purple/Indigo) -->
+        <button onclick="toggleModule(${module.id})" class="w-full px-4 py-3 flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-left font-bold text-xs text-slate-800 dark:text-slate-200 transition">          <span class="pr-2 break-words leading-tight">${escapeHtml(module.title)}</span>
+          <svg id="arrow-${module.id}" class="w-4 h-4 text-purple-700 dark:text-purple-300 flex-shrink-0 transform transition-transform duration-200 ${isActiveModule ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
-        <div id="module-body-${module.id}" class="${isActiveModule ? '' : 'hidden'} py-1">
+        <div id="module-body-${module.id}" class="${isActiveModule ? '' : 'hidden'} py-1 bg-white dark:bg-gray-900">
           ${topicsHtml}
         </div>
       </div>
@@ -246,6 +247,16 @@ function toggleModule(moduleId) {
 // 4. Navigasi ke topik tertentu (dipanggil dari sidebar)
 function navigateToTopic(topicId) {
   loadTopic(topicId);
+
+  // Auto-collapse sidebar khusus layar mobile
+  if (window.innerWidth < 1024) {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    sidebar?.classList.add('-translate-x-full');
+    overlay?.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+  }
 }
 
 // 5. Muat & render konten satu topik dari API
@@ -300,9 +311,11 @@ async function loadTopic(topicId) {
     renderCourseSidebar();
 
     // KODE BARU:
-    const newUrl = `course/${encodeURIComponent(topic.course_slug)}/topic/${topic.id}`;
-    // Atau jika memilih format pendek tanpa kata 'topic':
-    // const newUrl = `course/${encodeURIComponent(topic.course_slug)}/${topic.id}`;
+    // Pastikan slug murni tanpa prefix path/URL
+    const cleanSlug = String(topic.course_slug || '').split('/').pop();
+    
+    // Gunakan root-relative path aplikasi
+    const newUrl = `/digistack/course/${encodeURIComponent(cleanSlug)}/topic/${topic.id}`;
 
     window.history.replaceState({}, '', newUrl);
 
