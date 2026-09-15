@@ -9,27 +9,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
 
     try {
+        // --- 1. SAVE / UPDATE PROVIDER ---
         if ($action === 'save_provider') {
-            $id            = $_POST['id'] ?? '';
-            $name          = trim($_POST['name'] ?? '');
-            $slug          = trim($_POST['slug'] ?? '');
-            $base_url      = trim($_POST['base_url'] ?? '');
-            $api_key       = trim($_POST['api_key'] ?? '');
-            $header_key    = trim($_POST['header_key'] ?? '') ?: 'Authorization';
-            $header_prefix = $_POST['header_prefix'] ?? '';
-            $is_active     = isset($_POST['is_active']) ? 1 : 0;
+            $id                 = $_POST['id'] ?? '';
+            $name               = trim($_POST['name'] ?? '');
+            $slug               = trim($_POST['slug'] ?? '');
+            $base_url           = trim($_POST['base_url'] ?? '');
+            $api_key            = trim($_POST['api_key'] ?? '');
+            $header_key         = trim($_POST['header_key'] ?? '') ?: 'Authorization';
+            $header_prefix      = $_POST['header_prefix'] ?? '';
+            $request_template   = trim($_POST['request_template'] ?? '');
+            $additional_headers = trim($_POST['additional_headers'] ?? '');
+            $is_active          = isset($_POST['is_active']) ? 1 : 0;
+
+            // Validasi format JSON jika additional_headers diisi
+            if (!empty($additional_headers) && json_decode($additional_headers) === null) {
+                echo json_encode(['status' => 'error', 'message' => 'Format Additional Headers harus berformat JSON valid']);
+                exit;
+            }
 
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE ai_providers SET name = ?, slug = ?, base_url = ?, api_key = ?, header_key = ?, header_prefix = ?, is_active = ? WHERE id = ?");
-                $stmt->execute([$name, $slug, $base_url, $api_key, $header_key, $header_prefix, $is_active, $id]);
+                $stmt = $pdo->prepare("UPDATE ai_providers SET name = ?, slug = ?, base_url = ?, api_key = ?, header_key = ?, header_prefix = ?, request_template = ?, additional_headers = ?, is_active = ? WHERE id = ?");
+                $stmt->execute([$name, $slug, $base_url, $api_key, $header_key, $header_prefix, $request_template, $additional_headers, $is_active, $id]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO ai_providers (name, slug, base_url, api_key, header_key, header_prefix, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$name, $slug, $base_url, $api_key, $header_key, $header_prefix, $is_active]);
+                $stmt = $pdo->prepare("INSERT INTO ai_providers (name, slug, base_url, api_key, header_key, header_prefix, request_template, additional_headers, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$name, $slug, $base_url, $api_key, $header_key, $header_prefix, $request_template, $additional_headers, $is_active]);
             }
             echo json_encode(['status' => 'success', 'message' => 'Provider AI berhasil disimpan']);
             exit;
         }
 
+        // --- 2. DELETE PROVIDER ---
+        if ($action === 'delete_provider') {
+            $id = $_POST['id'] ?? '';
+            $stmt = $pdo->prepare("DELETE FROM ai_providers WHERE id = ?");
+            $stmt->execute([$id]);
+            echo json_encode(['status' => 'success', 'message' => 'Provider berhasil dihapus']);
+            exit;
+        }
+
+        // --- 3. SAVE / UPDATE MODEL ---
         if ($action === 'save_model') {
             $id           = $_POST['id'] ?? '';
             $provider_id  = $_POST['provider_id'] ?? '';
@@ -55,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             exit;
         }
 
+        // --- 4. DELETE MODEL ---
         if ($action === 'delete_model') {
             $stmt = $pdo->prepare("DELETE FROM ai_models WHERE id = ?");
             $stmt->execute([$_POST['id']]);
@@ -76,7 +96,12 @@ require_once __DIR__ . '/views/layout_header.php';
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">Konfigurasi AI Engine</h1>
-        <p class="text-xs text-slate-500 mt-0.5">Atur API Key Provider dan pemilihan Model AI</p>
+        <p class="text-xs text-slate-500 mt-0.5">Kelola Provider API, Dynamic Payload Request, dan AI Models</p>
+    </div>
+    <div>
+        <button onclick="openProviderModal()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+            <i class='bx bx-plus text-base'></i> Tambah Provider
+        </button>
     </div>
 </div>
 
@@ -91,16 +116,21 @@ require_once __DIR__ . '/views/layout_header.php';
                         <?= $p['is_active'] ? 'ACTIVE' : 'DISABLED' ?>
                     </span>
                 </div>
-                <p class="text-[11px] text-slate-400 font-mono mb-2 truncate"><?= htmlspecialchars($p['base_url']) ?></p>
+                <p class="text-[11px] text-slate-400 font-mono mb-2 truncate" title="<?= htmlspecialchars($p['base_url']) ?>"><?= htmlspecialchars($p['base_url']) ?></p>
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-600 flex items-center justify-between">
                     <span>Key: <?= substr($p['api_key'], 0, 8) ?>••••••••</span>
                     <i class='bx bx-key text-slate-400'></i>
                 </div>
             </div>
 
-            <button onclick='editProvider(<?= json_encode($p) ?>)' class="mt-4 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1">
-                <i class='bx bx-cog'></i> Edit Key & Endpoint
-            </button>
+            <div class="mt-4 flex items-center gap-2">
+                <button onclick='editProvider(<?= json_encode($p) ?>)' class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1">
+                    <i class='bx bx-cog'></i> Setting & Payload
+                </button>
+                <button onclick="deleteProvider(<?= $p['id'] ?>)" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs rounded-xl transition-all" title="Hapus Provider">
+                    <i class='bx bx-trash text-base'></i>
+                </button>
+            </div>
         </div>
     <?php endforeach; ?>
 </div>
@@ -156,31 +186,36 @@ require_once __DIR__ . '/views/layout_header.php';
     </div>
 </div>
 
-<!-- Modal Edit Provider -->
+<!-- Modal Add/Edit Provider -->
 <div id="providerModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-        <h3 class="text-base font-bold text-slate-900 mb-4" id="provTitle">Edit Provider AI</h3>
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 class="text-base font-bold text-slate-900 mb-4" id="provTitle">Provider AI</h3>
         <form id="providerForm" onsubmit="saveProvider(event)" class="space-y-3 text-xs">
             <input type="hidden" name="action" value="save_provider">
             <input type="hidden" name="id" id="p_id">
 
-            <div>
-                <label class="block font-semibold text-slate-700 mb-1">Nama Provider</label>
-                <input type="text" name="name" id="p_name" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Nama Provider</label>
+                    <input type="text" name="name" id="p_name" placeholder="misal: OpenRouter" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Slug Identifier</label>
+                    <input type="text" name="slug" id="p_slug" placeholder="misal: openrouter" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
+                </div>
             </div>
-            <div>
-                <label class="block font-semibold text-slate-700 mb-1">Slug Identifier</label>
-                <input type="text" name="slug" id="p_slug" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
-            </div>
+            
             <div>
                 <label class="block font-semibold text-slate-700 mb-1">Base Endpoint URL</label>
-                <input type="text" name="base_url" id="p_url" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono">
+                <input type="text" name="base_url" id="p_url" required placeholder="https://openrouter.ai/api/v1/chat/completions" class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono">
             </div>
+            
             <div>
                 <label class="block font-semibold text-slate-700 mb-1">API Key</label>
-                <input type="password" name="api_key" id="p_key" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono">
+                <input type="text" name="api_key" id="p_key" placeholder="misal: Xxxxxxxxxxxx999xxx" required class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono">
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            
+            <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Header Key</label>
                     <input type="text" name="header_key" id="p_hkey" value="Authorization" class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
@@ -190,15 +225,37 @@ require_once __DIR__ . '/views/layout_header.php';
                     <input type="text" name="header_prefix" id="p_hprefix" value="Bearer " class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
                 </div>
             </div>
+
+            <!-- Area Dynamic Request Template -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block font-semibold text-slate-700">Request Body Template (JSON)</label>
+                    <span class="text-[10px] text-slate-400">Gunakan tag: {model}, {prompt}, {temperature}, {max_tokens}</span>
+                </div>
+                <textarea name="request_template" id="p_template" rows="15" class="w-full px-3 py-2 bg-slate-900 text-emerald-400 border rounded-xl font-mono text-[11px] leading-relaxed" placeholder='{
+  "model": "{model}",
+  "messages": [{"role": "user", "content": "{prompt}"}],
+  "temperature": {temperature},
+  "max_tokens": {max_tokens}
+}'></textarea>
+            </div>
+
+            <!-- Area Custom Additional Headers -->
+            <div>
+                <label class="block font-semibold text-slate-700 mb-1">Additional Headers (JSON format)</label>
+                <textarea name="additional_headers" id="p_add_headers" rows="2" class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono text-[11px]" placeholder='{"HTTP-Referer": "http://localhost", "X-Title": "DigiStack"}'></textarea>
+            </div>
+
             <div>
                 <label class="flex items-center gap-2 cursor-pointer mt-2">
                     <input type="checkbox" name="is_active" id="p_active" class="rounded text-indigo-600">
                     <span class="font-semibold text-slate-700">Aktifkan Provider Ini</span>
                 </label>
             </div>
-            <div class="pt-3 flex justify-end gap-2">
+
+            <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
                 <button type="button" onclick="closeProvModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl">Simpan</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold">Simpan Provider</button>
             </div>
         </form>
     </div>
@@ -222,11 +279,11 @@ require_once __DIR__ . '/views/layout_header.php';
             </div>
             <div>
                 <label class="block font-semibold text-slate-700 mb-1">Display Name</label>
-                <input type="text" name="display_name" id="m_display_name" required placeholder="misal: Llama 3.3 70B (Groq)" class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
+                <input type="text" name="display_name" id="m_display_name" required placeholder="misal: Gemma 4 31B (OpenRouter)" class="w-full px-3 py-2 bg-slate-50 border rounded-xl">
             </div>
             <div>
                 <label class="block font-semibold text-slate-700 mb-1">Model Code (API Param)</label>
-                <input type="text" name="model_code" id="m_model_code" required placeholder="llama-3.3-70b-versatile" class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono">
+                <input type="text" name="model_code" id="m_model_code" required placeholder="google/gemma-4-31b:free" class="w-full px-3 py-2 bg-slate-50 border rounded-xl font-mono">
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <div>
@@ -250,7 +307,7 @@ require_once __DIR__ . '/views/layout_header.php';
             </div>
             <div class="pt-3 flex justify-end gap-2">
                 <button type="button" onclick="closeModelModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl">Simpan Model</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold">Simpan Model</button>
             </div>
         </form>
     </div>
@@ -259,15 +316,29 @@ require_once __DIR__ . '/views/layout_header.php';
 <?php require_once __DIR__ . '/views/toast.php'; ?>
 
 <script>
+function openProviderModal() {
+    document.getElementById('providerForm').reset();
+    document.getElementById('p_id').value = '';
+    document.getElementById('provTitle').innerText = 'Tambah Provider AI Baru';
+    document.getElementById('p_hkey').value = 'Authorization';
+    document.getElementById('p_hprefix').value = 'Bearer ';
+    document.getElementById('p_template').value = '{\n  "model": "{model}",\n  "messages": [\n    {\n      "role": "user",\n      "content": "{prompt}"\n    }\n  ],\n  "temperature": {temperature},\n  "max_tokens": {max_tokens}\n}';
+    document.getElementById('p_active').checked = true;
+    document.getElementById('providerModal').classList.remove('hidden');
+}
+
 function editProvider(data) {
     document.getElementById('p_id').value = data.id;
     document.getElementById('p_name').value = data.name;
     document.getElementById('p_slug').value = data.slug;
     document.getElementById('p_url').value = data.base_url;
     document.getElementById('p_key').value = data.api_key;
-    document.getElementById('p_hkey').value = data.header_key;
-    document.getElementById('p_hprefix').value = data.header_prefix;
+    document.getElementById('p_hkey').value = data.header_key || 'Authorization';
+    document.getElementById('p_hprefix').value = data.header_prefix !== null ? data.header_prefix : 'Bearer ';
+    document.getElementById('p_template').value = data.request_template || '';
+    document.getElementById('p_add_headers').value = data.additional_headers || '';
     document.getElementById('p_active').checked = data.is_active == 1;
+    document.getElementById('provTitle').innerText = 'Edit Provider AI & Dynamic Payload';
     document.getElementById('providerModal').classList.remove('hidden');
 }
 
@@ -298,6 +369,18 @@ function closeModelModal() { document.getElementById('modelModal').classList.add
 function saveProvider(e) {
     e.preventDefault();
     fetch('<?= admin_url("ai-engine.php") ?>', { method: 'POST', body: new FormData(e.target) })
+    .then(r => r.json()).then(res => {
+        showToast(res.message, res.status);
+        if(res.status === 'success') setTimeout(() => location.reload(), 800);
+    });
+}
+
+function deleteProvider(id) {
+    if(!confirm('Apakah Anda yakin ingin menghapus provider ini beserta seluruh model yang terhubung?')) return;
+    const fd = new FormData();
+    fd.append('action', 'delete_provider');
+    fd.append('id', id);
+    fetch('<?= admin_url("ai-engine.php") ?>', { method: 'POST', body: fd })
     .then(r => r.json()).then(res => {
         showToast(res.message, res.status);
         if(res.status === 'success') setTimeout(() => location.reload(), 800);

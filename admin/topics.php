@@ -4,30 +4,58 @@ require_once __DIR__ . '/auth.php';
 check_admin_login();
 
 /**
- * Memanggil provider AI (format OpenAI-compatible chat completions)
- * dan mem-parsing hasilnya menjadi content_markdown + summary_tldr.
+ * Memanggil cURL Engine secara dinamis berdasarkan request_template 
+ * dan additional_headers dari tabel ai_providers.
  */
-function call_ai_provider($model, $prompt) {
+function execute_single_ai_request($model, $prompt) {
+    // 1. Olah Additional Headers (JSON Format) dari DB
+    $customHeaders = json_decode($model['additional_headers'] ?? '{}', true) ?: [];
+    
     $headers = [
         'Content-Type: application/json',
         trim($model['header_key']) . ': ' . $model['header_prefix'] . $model['api_key']
     ];
 
-    $payload = [
-        'model'       => $model['model_code'],
-        'messages'    => [
-            ['role' => 'user', 'content' => $prompt]
-        ],
-        'max_tokens'  => (int)$model['max_tokens'],
-        'temperature' => (float)$model['temperature'],
-    ];
+    foreach ($customHeaders as $hKey => $hVal) {
+        $headers[] = "{$hKey}: {$hVal}";
+    }
 
+    // 2. Olah Request Body Template (JSON Format) dari DB secara Dinamis
+    $template = $model['request_template'];
+    if (!$template) {
+        // Fallback template jika kolom kosong
+        $template = json_encode([
+            'model'       => '{model}',
+            'messages'    => [['role' => 'user', 'content' => '{prompt}']],
+            'temperature' => '{temperature}',
+            'max_tokens'  => '{max_tokens}'
+        ]);
+    }
+
+    // Injeksi safe JSON prompt
+    $encodedPrompt = json_encode($prompt, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    // Hapus tanda petik pembuka dan penutup dari json_encode agar cocok disisipkan ke dalam template
+    $cleanPrompt = substr($encodedPrompt, 1, -1);
+
+    // Replace Placeholder
+    $jsonPayload = str_replace(
+        ['{model}', '{prompt}', '{temperature}', '{max_tokens}'],
+        [
+            $model['model_code'],
+            $cleanPrompt, 
+            (float)$model['temperature'],
+            (int)$model['max_tokens']
+        ],
+        $template
+    );
+
+    // Jalankan cURL Engine
     $ch = curl_init($model['base_url']);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
         CURLOPT_HTTPHEADER     => $headers,
-        CURLOPT_POSTFIELDS     => json_encode($payload),
+        CURLOPT_POSTFIELDS     => $jsonPayload,
         CURLOPT_TIMEOUT        => 90,
         CURLOPT_SSL_VERIFYPEER => true,
     ]);
@@ -38,31 +66,28 @@ function call_ai_provider($model, $prompt) {
     curl_close($ch);
 
     if ($curlError) {
-        return ['status' => 'error', 'message' => 'Koneksi ke provider AI gagal: ' . $curlError];
+        return ['status' => 'error', 'http_code' => 0, 'message' => 'Koneksi cURL gagal: ' . $curlError];
     }
 
     $decoded = json_decode($response, true);
 
     if ($httpCode < 200 || $httpCode >= 300) {
-        $errMsg = $decoded['error']['message'] ?? ('HTTP ' . $httpCode . ' dari provider AI');
-        return ['status' => 'error', 'message' => 'Provider AI menolak permintaan: ' . $errMsg];
+        $errMsg = $decoded['error']['message'] ?? ('HTTP Status ' . $httpCode);
+        return ['status' => 'error', 'http_code' => $httpCode, 'message' => $errMsg];
     }
 
     $rawText = $decoded['choices'][0]['message']['content'] ?? '';
-
     if (!$rawText) {
-        return ['status' => 'error', 'message' => 'Respon AI kosong atau format tidak dikenali.'];
+        return ['status' => 'error', 'http_code' => $httpCode, 'message' => 'Respon AI kosong.'];
     }
 
-    // Bersihkan jika model membungkus jawaban dengan code fence ```json ... ```
+    // Parsing JSON dari AI Output
     $cleanText = trim($rawText);
-    $cleanText = preg_replace('/^```(?:json)?/i', '', $cleanText);
-    $cleanText = preg_replace('/```$/', '', $cleanText);
+    $cleanText = preg_replace('/^```(?:json)?/i', '', $cleanText);$cleanText = preg_replace('/```$/', '', $cleanText);
     $cleanText = trim($cleanText);
 
     $parsed = json_decode($cleanText, true);
 
-    // Fallback: ambil substring JSON pertama jika masih ada teks tambahan di luar JSON
     if (!is_array($parsed) || !isset($parsed['content_markdown'])) {
         if (preg_match('/\{.*\}/s', $cleanText, $matches)) {
             $parsed = json_decode($matches[0], true);
@@ -70,7 +95,7 @@ function call_ai_provider($model, $prompt) {
     }
 
     if (!is_array($parsed) || !isset($parsed['content_markdown'])) {
-        return ['status' => 'error', 'message' => 'Gagal memparsing hasil JSON dari AI. Coba generate ulang.'];
+        return ['status' => 'error', 'http_code' => $httpCode, 'message' => 'Format JSON output AI tidak valid.'];
     }
 
     return [
@@ -79,6 +104,55 @@ function call_ai_provider($model, $prompt) {
             'content_markdown' => $parsed['content_markdown'],
             'summary_tldr'     => $parsed['summary_tldr'] ?? '',
         ]
+    ];
+}
+
+/**
+ * Pemanggilan AI Utama dengan Sistem Auto-Fallback ke Model Aktif Lainnya
+ */
+function call_ai_provider_with_fallback($pdo, $primaryModelId, $prompt) {
+    // 1. Ambil Model Utama Pilihan User
+    $stmt = $pdo->prepare("SELECT m.*, p.name as provider_name, p.base_url, p.api_key, p.header_key, p.header_prefix, p.request_template, p.additional_headers 
+                           FROM ai_models m 
+                           JOIN ai_providers p ON m.provider_id = p.id 
+                           WHERE m.id = ? AND m.is_active = 1 AND p.is_active = 1");
+    $stmt->execute([$primaryModelId]);
+    $primaryModel = $stmt->fetch();
+
+    if (!$primaryModel) {
+        return ['status' => 'error', 'message' => 'Model AI utama tidak ditemukan atau tidak aktif.'];
+    }
+
+    // Eksekusi Panggilan Pertama
+    $res = execute_single_ai_request($primaryModel, $prompt);
+    if ($res['status'] === 'success') {
+        return $res;
+    }
+
+    // 2. Jika Gagal (misal HTTP 429 / Rate Limit), Cari Model Alternatif Aktif Lainnya
+    $stmtFallback = $pdo->prepare("SELECT m.*, p.name as provider_name, p.base_url, p.api_key, p.header_key, p.header_prefix, p.request_template, p.additional_headers 
+                                   FROM ai_models m 
+                                   JOIN ai_providers p ON m.provider_id = p.id 
+                                   WHERE m.id != ? AND m.is_active = 1 AND p.is_active = 1 
+                                   ORDER BY m.is_default DESC, m.id ASC");
+    $stmtFallback->execute([$primaryModelId]);
+    $fallbackModels = $stmtFallback->fetchAll();
+
+    $failedLogs = [$primaryModel['display_name'] . ' (' . $res['message'] . ')'];
+
+    foreach ($fallbackModels as $altModel) {
+        $altRes = execute_single_ai_request($altModel, $prompt);
+        if ($altRes['status'] === 'success') {
+            $altRes['fallback_used'] = true;
+            $altRes['fallback_provider'] = $altModel['display_name'];
+            return $altRes;
+        }
+        $failedLogs[] = $altModel['display_name'] . ' (' . $altRes['message'] . ')';
+    }
+
+    return [
+        'status'  => 'error', 
+        'message' => 'Seluruh provider AI gagal merespons: ' . implode(' | ', $failedLogs)
     ];
 }
 
@@ -95,8 +169,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $slug                = trim($_POST['slug']) ?: strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $title)));
             $order_position      = (int)($_POST['order_position'] ?? 0);
             $estimated_read_time = (int)($_POST['estimated_read_time'] ?? 5);
-            
-            // Mengambil markdown tanpa merusak indentasi internal
             $content_markdown    = $_POST['content_markdown'] ?? '';
             $summary_tldr        = trim($_POST['summary_tldr'] ?? '');
             $generation_type     = ($_POST['generation_type'] ?? 'manual') === 'ai_generated' ? 'ai_generated' : 'manual';
@@ -109,10 +181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute([$module_id, $title, $slug, $order_position, $estimated_read_time, $id]);
 
                 // Update or Insert Content
-                $stmtContent = $pdo->prepare("INSERT INTO topic_contents (topic_id, content_markdown, summary_tldr) 
-                                              VALUES (?, ?, ?) 
-                                              ON DUPLICATE KEY UPDATE content_markdown = VALUES(content_markdown), summary_tldr = VALUES(summary_tldr)");
-                $stmtContent->execute([$id, $content_markdown, $summary_tldr]);
+                $stmtContent = $pdo->prepare("INSERT INTO topic_contents (topic_id, content_markdown, summary_tldr, generation_type) 
+                                              VALUES (?, ?, ?, ?) 
+                                              ON DUPLICATE KEY UPDATE content_markdown = VALUES(content_markdown), summary_tldr = VALUES(summary_tldr), generation_type = VALUES(generation_type)");
+                $stmtContent->execute([$id, $content_markdown, $summary_tldr, $generation_type]);
 
                 $pdo->commit();
                 echo json_encode(['status' => 'success', 'message' => 'Topic & materi berhasil diperbarui']);
@@ -156,33 +228,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $module_id   = $_POST['module_id'] ?? '';
             $topic_title = trim($_POST['title'] ?? '');
 
-            if (!$model_id) {
-                echo json_encode(['status' => 'error', 'message' => 'Pilih Model AI terlebih dahulu.']);
-                exit;
-            }
-            if (!$module_id) {
-                echo json_encode(['status' => 'error', 'message' => 'Pilih Induk Module terlebih dahulu.']);
-                exit;
-            }
-            if (!$topic_title) {
-                echo json_encode(['status' => 'error', 'message' => 'Isi Judul Topic terlebih dahulu.']);
+            if (!$model_id || !$module_id || !$topic_title) {
+                echo json_encode(['status' => 'error', 'message' => 'Lengkapi Induk Module, Judul Topic, dan Model AI.']);
                 exit;
             }
 
-            // Ambil detail model + provider (harus aktif)
-            $stmt = $pdo->prepare("SELECT m.*, p.name as provider_name, p.base_url, p.api_key, p.header_key, p.header_prefix 
-                                   FROM ai_models m 
-                                   JOIN ai_providers p ON m.provider_id = p.id 
-                                   WHERE m.id = ? AND m.is_active = 1 AND p.is_active = 1");
-            $stmt->execute([$model_id]);
-            $model = $stmt->fetch();
-
-            if (!$model) {
-                echo json_encode(['status' => 'error', 'message' => 'Model AI tidak ditemukan atau sedang tidak aktif.']);
-                exit;
-            }
-
-            // Ambil konteks Module & Course agar materi lebih relevan
             $stmtMod = $pdo->prepare("SELECT m.title as module_title, c.title as course_title 
                                       FROM modules m JOIN courses c ON m.course_id = c.id WHERE m.id = ?");
             $stmtMod->execute([$module_id]);
@@ -197,14 +247,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 . "- Module: {$moduleTitle}\n"
                 . "- Judul Topic: {$topic_title}\n\n"
                 . "Ketentuan penulisan:\n"
-                . "1. Tulis materi dalam format Markdown yang rapi (gunakan heading, sub-heading, bullet list, dan code block bila relevan dengan topik). jika memang dibutuhkan berikan sub heading A, B, C dan seterusnya agar lebih detail dan lengkap.\n"
-                . "2. Bahasa jelas, konten jangan terlalu singkat, terstruktur, dan mudah dipahami untuk pemula.\n"
-                . "3. Sertakan juga ringkasan singkat (TL;DR) 2-4 kalimat yang merangkum inti materi.\n"
-                . "4. WAJIB kembalikan jawaban HANYA dalam format JSON valid tanpa teks tambahan apapun di luar JSON, dengan struktur PERSIS seperti ini:\n"
+                . "1. Tulis materi dalam format Markdown yang rapi (gunakan heading, sub-heading, bullet list, dan code block bila relevan dengan topik).\n"
+                . "2. Bahasa jelas, terstruktur, dan mudah dipahami.\n"
+                . "3. Sertakan ringkasan singkat (TL;DR) 2-4 kalimat.\n"
+                . "4. WAJIB kembalikan jawaban HANYA dalam format JSON valid tanpa teks tambahan di luar JSON:\n"
                 . '{"content_markdown": "...", "summary_tldr": "..."}' . "\n"
-                . "5. Jangan bungkus JSON dengan code fence markdown (jangan pakai ```).";
+                . "5. Jangan bungkus JSON dengan code fence markdown.";
 
-            $result = call_ai_provider($model, $prompt);
+            $result = call_ai_provider_with_fallback($pdo, $model_id, $prompt);
             echo json_encode($result);
             exit;
         }
@@ -218,20 +268,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Fetch Modules
 $all_modules = $pdo->query("SELECT m.id, m.title, c.title as course_title FROM modules m JOIN courses c ON m.course_id = c.id ORDER BY c.title ASC, m.order_position ASC")->fetchAll();
 
-// Fetch Model AI yang aktif (provider aktif + model aktif) untuk fitur Generate AI
+// Fetch Model AI Aktif
 $active_ai_models = $pdo->query("SELECT m.id, m.display_name, p.name as provider_name 
                                  FROM ai_models m 
                                  JOIN ai_providers p ON m.provider_id = p.id 
                                  WHERE m.is_active = 1 AND p.is_active = 1 
                                  ORDER BY p.name ASC, m.display_name ASC")->fetchAll();
 
-// --- DATA FETCHING & PAGINATION (FIXED) ---
+// --- DATA FETCHING & PAGINATION ---
 $search = trim($_GET['q'] ?? '');
 $page   = max(1, (int)($_GET['p'] ?? 1));
 $limit  = 20;
 $offset = ($page - 1) * $limit;
 
-// 1. Hitung total data
 $whereClause = $search ? "WHERE t.title LIKE ? OR m.title LIKE ?" : "";
 $countStmt   = $pdo->prepare("SELECT COUNT(*) FROM topics t JOIN modules m ON t.module_id = m.id $whereClause");
 
@@ -245,32 +294,28 @@ if ($search) {
 $totalRows  = $countStmt->fetchColumn();
 $totalPages = ceil($totalRows / $limit);
 
-// 2. Query Fetching
 $query = "SELECT t.*, m.title as module_title, c.title as course_title, tc.generation_type
           FROM topics t 
           JOIN modules m ON t.module_id = m.id 
           JOIN courses c ON m.course_id = c.id 
           LEFT JOIN topic_contents tc ON t.id = tc.topic_id
           $whereClause 
-          ORDER BY tc.topic_id ASC, t.order_position ASC LIMIT ? OFFSET ?";
+          ORDER BY t.id DESC LIMIT ? OFFSET ?";
 
 $stmt = $pdo->prepare($query);
 
-// Parameter Index Binding
 $paramIndex = 1;
-
 if ($search) {
     $stmt->bindValue($paramIndex++, "%$search%", PDO::PARAM_STR);
     $stmt->bindValue($paramIndex++, "%$search%", PDO::PARAM_STR);
 }
-
 $stmt->bindValue($paramIndex++, $limit, PDO::PARAM_INT);
 $stmt->bindValue($paramIndex++, $offset, PDO::PARAM_INT);
 
 $stmt->execute();
 $topics = $stmt->fetchAll();
-
 ?>
+
 <!-- CDN Toast UI Editor -->
 <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
 <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
@@ -290,13 +335,13 @@ $topics = $stmt->fetchAll();
 
 <!-- Search Bar -->
 <div class="bg-white border border-slate-200/80 rounded-2xl px-4 pt-4 pb-0 mb-6 shadow-sm">
-    <form action="./topics" method="GET" class="relative flex items-center">
+    <form action="" method="GET" class="relative flex items-center">
         <i class='bx bx-search absolute left-3.5 text-slate-400 text-lg'></i>
         <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari judul topic atau judul modul..." class="w-full pl-10 <?= $search !== '' ? 'pr-28' : 'pr-20' ?> py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
         
         <div class="absolute right-1.5 flex items-center gap-1">
             <?php if ($search !== ''): ?>
-                <a href="./topics" class="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-200/60 rounded-lg transition-all" title="Reset pencarian">
+                <a href="?" class="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-200/60 rounded-lg transition-all" title="Reset pencarian">
                     <i class='bx bx-x text-lg block'></i>
                 </a>
             <?php endif; ?>
@@ -335,7 +380,7 @@ $topics = $stmt->fetchAll();
                         </td>
                         <td class="py-3.5 px-5">
                             <span class="inline-flex items-center gap-1 text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
-                                <i class='bx bx-time-five'></i> <?= $t['estimated_read_time'] ?> menit
+                                <i class='bx bx-time-five'></i> <?= (int)$t['estimated_read_time'] ?> menit
                             </span>
                         </td>
                         <td class="py-3.5 px-5">
@@ -372,7 +417,7 @@ $topics = $stmt->fetchAll();
                     <?php 
                         $queryParams = ['p' => $i];
                         if (!empty($search)) $queryParams['q'] = $search;
-                        $url = './topics?' . http_build_query($queryParams);
+                        $url = '?' . http_build_query($queryParams);
                     ?>
                     <a href="<?= $url ?>" class="w-7 h-7 flex items-center justify-center rounded-lg font-medium transition-all <?= $i === $page ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'hover:bg-slate-100 text-slate-600' ?>"><?= $i ?></a>
                 <?php endfor; ?>
@@ -383,25 +428,14 @@ $topics = $stmt->fetchAll();
 
 <!-- Modal Form -->
 <div id="topicModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-2 sm:p-3 overflow-y-auto">
-
     <div id="modalContainer" class="bg-white w-full max-w-none rounded-xl sm:rounded-2xl shadow-2xl my-auto transform transition-all scale-95 opacity-0 duration-200 flex flex-col min-h-[95vh] overflow-hidden">
-
+        
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 sm:px-5 border-b border-slate-100 shrink-0">
-
-            <h3 class="text-base font-bold text-slate-900 leading-tight" id="modalTitle">
-                Tambah Topic Materi
-            </h3>
-
-            <button
-                type="button"
-                onclick="closeModal()"
-                class="w-7 h-7 flex items-center justify-center
-                       text-slate-400 hover:text-slate-600
-                       hover:bg-slate-100 rounded-lg transition-colors">
+            <h3 class="text-base font-bold text-slate-900 leading-tight" id="modalTitle">Tambah Topic Materi</h3>
+            <button type="button" onclick="closeModal()" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                 <i class="bx bx-x text-xl"></i>
             </button>
-
         </div>
 
         <!-- Form Wrapper -->
@@ -410,9 +444,8 @@ $topics = $stmt->fetchAll();
             <input type="hidden" name="id" id="topic_id">
             <input type="hidden" name="generation_type" id="generation_type" value="manual">
 
-            <!-- Body Grid (Scrollable) -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-y-auto pr-1 flex-1 pb-2">
-                <!-- Kolom Kiri: Form Meta Data -->
+                <!-- Kolom Kiri -->
                 <div class="lg:col-span-5 space-y-3.5">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Induk Module (Bab)</label>
@@ -461,41 +494,28 @@ $topics = $stmt->fetchAll();
                                 <span id="btnGenerateLabel">Generate AI</span>
                             </button>
                         </div>
-                        <p class="text-[10.5px] text-indigo-400 leading-relaxed">Pilih Induk Module & isi Judul Topic terlebih dahulu, lalu pilih model AI dan klik Generate. Hasil akan otomatis mengisi Konten Materi & TL;DR di bawah — silakan review sebelum menyimpan.</p>
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">TL;DR / Rangkuman Singkat</label>
-                        <textarea name="summary_tldr" id="summary_tldr" rows="7" placeholder="Kesimpulan cepat dari materi ini..." class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"></textarea>
+                        <textarea name="summary_tldr" id="summary_tldr" rows="6" placeholder="Kesimpulan cepat dari materi ini..." class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"></textarea>
                     </div>
                 </div>
 
-                <!-- Kolom Kanan: Toast UI Editor -->
+                <!-- Kolom Kanan -->
                 <div class="lg:col-span-7 flex flex-col min-h-[400px]">
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Konten Materi (Markdown Format)
-                    </label>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Konten Materi (Markdown Format)</label>
                     <div class="flex-1">
-                        <textarea name="content_markdown" id="content_markdown" style="display:none;"></textarea>
+                        <textarea name="content_markdown" id="content_markdown" class="hidden"></textarea>
                         <div id="markdown-editor"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Footer Action Buttons -->
+            <!-- Footer Buttons -->
             <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
-                <button
-                    type="button"
-                    onclick="closeModal()"
-                    class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all">
-                    Batal
-                </button>
-
-                <button
-                    type="submit"
-                    class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-indigo-600/30 transition-all">
-                    Simpan Topic
-                </button>
+                <button type="button" onclick="closeModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all">Batal</button>
+                <button type="submit" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-indigo-600/30 transition-all">Simpan Topic</button>
             </div>
         </form>
     </div>
@@ -505,9 +525,8 @@ $topics = $stmt->fetchAll();
 
 <script>
 let toastEditor;
-let isProgrammaticFill = false; // flag agar auto-reset ke 'manual' tidak terpicu saat AI mengisi field
+let isProgrammaticFill = false;
 
-// Helper slug generator
 function generateSlug(text) {
     return text.toString().toLowerCase().trim()
         .replace(/\s+/g, '-')
@@ -521,18 +540,16 @@ document.getElementById('title').addEventListener('input', function() {
     document.getElementById('slug').value = generateSlug(this.value);
 });
 
-// Inisialisasi Toast UI Editor
 document.addEventListener('DOMContentLoaded', function () {
     toastEditor = new toastui.Editor({
         el: document.getElementById('markdown-editor'),
-        height: '480px',
+        height: '460px',
         initialEditType: 'wysiwyg',
         previewStyle: 'vertical',
         initialValue: '',
         usageStatistics: false
     });
 
-    // Jika admin mengedit manual konten materi setelah hasil AI diisi, tandai kembali sebagai manual
     toastEditor.on('change', function () {
         if (!isProgrammaticFill) {
             document.getElementById('generation_type').value = 'manual';
@@ -566,18 +583,9 @@ function generateWithAI() {
     const title    = document.getElementById('title').value.trim();
     const modelId  = document.getElementById('ai_model_id').value;
 
-    if (!moduleId) {
-        showToast('Pilih Induk Module terlebih dahulu.', 'error');
-        return;
-    }
-    if (!title) {
-        showToast('Isi Judul Topic terlebih dahulu.', 'error');
-        return;
-    }
-    if (!modelId) {
-        showToast('Pilih Model AI terlebih dahulu.', 'error');
-        return;
-    }
+    if (!moduleId) return showToast('Pilih Induk Module terlebih dahulu.', 'error');
+    if (!title) return showToast('Isi Judul Topic terlebih dahulu.', 'error');
+    if (!modelId) return showToast('Pilih Model AI terlebih dahulu.', 'error');
 
     const fd = new FormData();
     fd.append('action', 'generate_ai');
@@ -587,11 +595,10 @@ function generateWithAI() {
 
     setGenerateButtonLoading(true);
 
-    fetch('<?= admin_url("topics.php") ?>', { method: 'POST', body: fd })
+    fetch(window.location.href, { method: 'POST', body: fd })
         .then(r => r.json())
         .then(res => {
             setGenerateButtonLoading(false);
-
             if (res.status === 'success') {
                 isProgrammaticFill = true;
 
@@ -603,19 +610,21 @@ function generateWithAI() {
 
                 isProgrammaticFill = false;
 
-                showToast('Materi berhasil digenerate oleh AI. Silakan review sebelum menyimpan.');
+                let msg = 'Materi berhasil di-generate oleh AI!';
+                if (res.fallback_used) {
+                    msg += ' (Fallback ke: ' + res.fallback_provider + ')';
+                }
+                showToast(msg, 'success');
             } else {
                 showToast(res.message || 'Gagal generate materi AI.', 'error');
             }
         })
-        .catch(() => {
+        .catch(err => {
             setGenerateButtonLoading(false);
             showToast('Terjadi kesalahan koneksi saat generate AI.', 'error');
+            console.error(err);
         });
 }
-
-const modal = document.getElementById('topicModal');
-const modalContainer = document.getElementById('modalContainer');
 
 function openModal() {
     document.getElementById('topicForm').reset();
@@ -624,44 +633,51 @@ function openModal() {
     document.getElementById('modalTitle').innerText = 'Tambah Topic Baru';
     
     isProgrammaticFill = true;
-    if (toastEditor) {
-        toastEditor.setMarkdown('');
-    }
+    if (toastEditor) toastEditor.setMarkdown('');
     isProgrammaticFill = false;
+
+    const modal = document.getElementById('topicModal');
+    const container = document.getElementById('modalContainer');
 
     modal.classList.remove('hidden');
     setTimeout(() => {
-        modalContainer.classList.remove('scale-95', 'opacity-0');
-        modalContainer.classList.add('scale-100', 'opacity-100');
+        container.classList.remove('scale-95', 'opacity-0');
+        container.classList.add('scale-100', 'opacity-100');
     }, 10);
 }
 
 function closeModal() {
-    modalContainer.classList.remove('scale-100', 'opacity-100');
-    modalContainer.classList.add('scale-95', 'opacity-0');
+    const modal = document.getElementById('topicModal');
+    const container = document.getElementById('modalContainer');
+
+    container.classList.remove('scale-100', 'opacity-100');
+    container.classList.add('scale-95', 'opacity-0');
     setTimeout(() => modal.classList.add('hidden'), 200);
 }
 
 function saveData(e) {
     e.preventDefault();
 
-    // Salin data Markdown dari Toast UI ke textarea hidden
     if (toastEditor) {
         document.getElementById('content_markdown').value = toastEditor.getMarkdown();
     }
 
     const formData = new FormData(e.target);
 
-    fetch('<?= admin_url("topics.php") ?>', { method: 'POST', body: formData })
+    fetch(window.location.href, { method: 'POST', body: formData })
     .then(r => r.json())
     .then(res => {
         if(res.status === 'success') {
-            showToast(res.message);
+            showToast(res.message, 'success');
             closeModal();
-            setTimeout(() => location.reload(), 800);
+            setTimeout(() => window.location.reload(), 800);
         } else {
             showToast(res.message, 'error');
         }
+    })
+    .catch(err => {
+        showToast('Gagal menyimpan data.', 'error');
+        console.error(err);
     });
 }
 
@@ -670,10 +686,10 @@ function editData(id) {
     formData.append('action', 'get');
     formData.append('id', id);
 
-    fetch('<?= admin_url("topics.php") ?>', { method: 'POST', body: formData })
+    fetch(window.location.href, { method: 'POST', body: formData })
     .then(r => r.json())
     .then(res => {
-        if(res.status === 'success') {
+        if(res.status === 'success' && res.data) {
             const d = res.data;
             document.getElementById('topic_id').value = d.id;
             document.getElementById('module_id').value = d.module_id;
@@ -685,7 +701,6 @@ function editData(id) {
             isProgrammaticFill = true;
             document.getElementById('summary_tldr').value = d.summary_tldr || '';
 
-            // Set konten ke Toast UI Editor
             if (toastEditor) {
                 toastEditor.setMarkdown(d.content_markdown || '');
             }
@@ -693,13 +708,19 @@ function editData(id) {
 
             document.getElementById('modalTitle').innerText = 'Edit Topic & Content';
 
+            const modal = document.getElementById('topicModal');
+            const container = document.getElementById('modalContainer');
+
             modal.classList.remove('hidden');
             setTimeout(() => {
-                modalContainer.classList.remove('scale-95', 'opacity-0');
-                modalContainer.classList.add('scale-100', 'opacity-100');
+                container.classList.remove('scale-95', 'opacity-0');
+                container.classList.add('scale-100', 'opacity-100');
             }, 10);
+        } else {
+            showToast('Gagal mengambil data topic.', 'error');
         }
-    });
+    })
+    .catch(err => console.error(err));
 }
 
 function deleteData(id) {
@@ -709,16 +730,17 @@ function deleteData(id) {
     formData.append('action', 'delete');
     formData.append('id', id);
 
-    fetch('<?= admin_url("topics.php") ?>', { method: 'POST', body: formData })
+    fetch(window.location.href, { method: 'POST', body: formData })
     .then(r => r.json())
     .then(res => {
         if(res.status === 'success') {
-            showToast(res.message);
-            setTimeout(() => location.reload(), 800);
+            showToast(res.message, 'success');
+            setTimeout(() => window.location.reload(), 800);
         } else {
             showToast(res.message, 'error');
         }
-    });
+    })
+    .catch(err => console.error(err));
 }
 </script>
 
