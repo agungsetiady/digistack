@@ -181,10 +181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute([$module_id, $title, $slug, $order_position, $estimated_read_time, $id]);
 
                 // Update or Insert Content
-                $stmtContent = $pdo->prepare("INSERT INTO topic_contents (topic_id, content_markdown, summary_tldr, generation_type) 
-                                              VALUES (?, ?, ?, ?) 
-                                              ON DUPLICATE KEY UPDATE content_markdown = VALUES(content_markdown), summary_tldr = VALUES(summary_tldr), generation_type = VALUES(generation_type)");
-                $stmtContent->execute([$id, $content_markdown, $summary_tldr, $generation_type]);
+                $stmtContent = $pdo->prepare("INSERT INTO topic_contents (topic_id, content_markdown, summary_tldr) 
+                                              VALUES (?, ?, ?) 
+                                              ON DUPLICATE KEY UPDATE content_markdown = VALUES(content_markdown), summary_tldr = VALUES(summary_tldr)");
+                $stmtContent->execute([$id, $content_markdown, $summary_tldr]);
 
                 $pdo->commit();
                 echo json_encode(['status' => 'success', 'message' => 'Topic & materi berhasil diperbarui']);

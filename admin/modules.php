@@ -76,7 +76,7 @@ $totalPages = ceil($totalRows / $limit);
 // Main Query (Semua parameter menggunakan Named Parameter)
 $query = "SELECT m.*, c.title as course_title, (SELECT COUNT(*) FROM topics WHERE module_id = m.id) as total_topics 
           FROM modules m JOIN courses c ON m.course_id = c.id $whereClause 
-          ORDER BY m.course_id ASC, m.order_position ASC LIMIT :limit OFFSET :offset";
+          ORDER BY m.course_id DESC, m.order_position DESC LIMIT :limit OFFSET :offset";
 
 $stmt = $pdo->prepare($query);
 

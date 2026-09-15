@@ -1,0 +1,1069 @@
+Git, GitHub & GitLab — Dari Fundamental hingga Advanced
+Bagian I — Fondasi Version Control
+
+Bab 1. Memahami Version Control
+1.1 Apa itu Version Control System
+1.2 Masalah yang diselesaikan VCS
+1.3 Sejarah version control
+1.4 File sharing vs version control
+1.5 Centralized vs Distributed Version Control
+1.6 Git sebagai Distributed Version Control System
+1.7 Git vs SVN vs Mercurial
+1.8 Git, GitHub, dan GitLab: apa bedanya?
+1.9 Kapan menggunakan GitHub?
+1.10 Kapan menggunakan GitLab?
+1.11 Mitos dan miskonsepsi tentang Git
+1.12 Mental model yang harus dimiliki sebelum belajar Git
+
+Bagian II — Instalasi dan Konfigurasi Git
+Bab 2. Instalasi Git
+
+2.1 Instalasi Git di Windows
+2.2 Instalasi Git di Linux
+2.3 Instalasi Git di macOS
+2.4 Git Bash
+2.5 Git GUI
+2.6 Git melalui terminal
+2.7 Memeriksa versi Git
+2.8 Upgrade Git
+2.9 Struktur instalasi Git
+
+Bab 3. Konfigurasi Git
+
+3.1 Konsep Git configuration
+3.2 System configuration
+3.3 Global configuration
+3.4 Local repository configuration
+3.5 git config
+3.6 Username dan email
+3.7 Default branch
+3.8 Editor Git
+3.9 Credential helper
+3.10 Alias Git
+3.11 Conditional configuration
+3.12 .gitconfig
+3.13 Memeriksa konfigurasi
+3.14 Troubleshooting konfigurasi
+
+Bagian III — Fundamental Git
+Bab 4. Repository dan Git Workflow
+
+4.1 Apa itu repository
+4.2 Working directory
+4.3 Staging area
+4.4 Repository
+4.5 Commit
+4.6 HEAD
+4.7 Working tree
+4.8 Git object
+4.9 Siklus perubahan file
+4.10 Git workflow fundamental
+
+Bab 5. Repository Pertama
+
+5.1 git init
+5.2 Struktur .git
+5.3 git status
+5.4 git add
+5.5 git commit
+5.6 git log
+5.7 Melihat perubahan
+5.8 git diff
+5.9 Commit yang baik
+5.10 Conventional commit message
+5.11 Amend commit
+
+Bab 6. Memahami Commit
+
+6.1 Apa sebenarnya commit?
+6.2 Commit hash
+6.3 Parent commit
+6.4 Snapshot vs delta
+6.5 Commit metadata
+6.6 Author vs committer
+6.7 Commit graph
+6.8 Commit identity
+6.9 Empty commit
+6.10 Commit atomicity
+
+Bab 7. File Tracking
+
+7.1 Untracked files
+7.2 Tracked files
+7.3 Modified files
+7.4 Staged files
+7.5 Deleted files
+7.6 Renamed files
+7.7 git rm
+7.8 git mv
+7.9 Stage sebagian perubahan
+7.10 Interactive staging
+
+Bagian IV — Branching
+Bab 8. Konsep Branch
+
+8.1 Apa itu branch
+8.2 Branch sebagai pointer
+8.3 HEAD dan branch
+8.4 Membuat branch
+8.5 Berpindah branch
+8.6 Rename branch
+8.7 Delete branch
+8.8 Tracking branch
+8.9 Remote branch
+8.10 Branch lifecycle
+
+Bab 9. Branch Workflow
+
+9.1 Feature branch
+9.2 Bugfix branch
+9.3 Release branch
+9.4 Hotfix branch
+9.5 Experiment branch
+9.6 Short-lived vs long-lived branch
+9.7 Branch naming convention
+9.8 Branch protection
+
+Bab 10. Merge
+
+10.1 Apa itu merge
+10.2 Fast-forward merge
+10.3 Three-way merge
+10.4 Merge commit
+10.5 Automatic merge
+10.6 Merge conflict
+10.7 Menyelesaikan conflict
+10.8 Abort merge
+10.9 Merge strategy
+10.10 --no-ff
+10.11 --ff-only
+
+Bab 11. Rebase
+
+11.1 Apa itu rebase
+11.2 Rebase vs merge
+11.3 Interactive rebase
+11.4 Squashing commit
+11.5 Reordering commit
+11.6 Editing commit
+11.7 Dropping commit
+11.8 Rebase conflict
+11.9 rebase --continue
+11.10 rebase --abort
+11.11 Rebase branch publik
+11.12 Golden rule of rebase
+
+Bagian V — Undo, Recovery & History
+Bab 12. Membatalkan Perubahan
+
+12.1 git restore
+12.2 git reset
+12.3 Soft reset
+12.4 Mixed reset
+12.5 Hard reset
+12.6 git revert
+12.7 Reset vs revert
+12.8 Membatalkan staged changes
+12.9 Membatalkan commit terakhir
+12.10 Membatalkan commit lama
+
+Bab 13. Recovering Lost Work
+
+13.1 Apa itu reflog
+13.2 git reflog
+13.3 Recover commit yang hilang
+13.4 Recover setelah hard reset
+13.5 Recover branch yang terhapus
+13.6 Dangling objects
+13.7 git fsck
+13.8 Git garbage collection
+13.9 Disaster recovery Git
+
+Bab 14. Git Stash
+
+14.1 Konsep stash
+14.2 git stash
+14.3 Stash staged changes
+14.4 Stash untracked files
+14.5 Apply vs pop
+14.6 Stash branch
+14.7 Multiple stash
+14.8 Drop stash
+14.9 Stash workflow
+
+Bagian VI — Remote Repository
+Bab 15. Git Remote
+
+15.1 Konsep remote repository
+15.2 git remote
+15.3 Menambahkan remote
+15.4 Mengubah remote URL
+15.5 Menghapus remote
+15.6 Origin
+15.7 Upstream
+15.8 Multiple remote
+15.9 Remote tracking branch
+
+Bab 16. Fetch, Pull & Push
+
+16.1 git fetch
+16.2 git pull
+16.3 git pull --rebase
+16.4 git push
+16.5 Push branch
+16.6 Push tags
+16.7 Force push
+16.8 --force-with-lease
+16.9 Tracking upstream
+16.10 Fetch vs pull
+16.11 Pull workflow yang aman
+
+Bab 17. Clone
+
+17.1 git clone
+17.2 HTTPS clone
+17.3 SSH clone
+17.4 Clone repository tertentu
+17.5 Shallow clone
+17.6 Partial clone
+17.7 Bare clone
+17.8 Clone dengan branch tertentu
+
+Bagian VII — GitHub
+Bab 18. Mengenal GitHub
+
+18.1 Apa itu GitHub
+18.2 GitHub vs Git
+18.3 Repository GitHub
+18.4 Profile
+18.5 Organization
+18.6 Repository visibility
+18.7 Public vs private repository
+18.8 GitHub ecosystem
+
+Bab 19. GitHub Repository
+
+19.1 Membuat repository
+19.2 Menghubungkan repository lokal
+19.3 README
+19.4 LICENSE
+19.5 .gitignore
+19.6 CODEOWNERS
+19.7 Templates
+19.8 Repository settings
+19.9 Tags dan releases
+19.10 Repository archive
+
+Bab 20. GitHub Collaboration
+
+20.1 Fork
+20.2 Clone
+20.3 Branch
+20.4 Pull Request
+20.5 Review
+20.6 Approve
+20.7 Request changes
+20.8 Merge Pull Request
+20.9 Draft Pull Request
+20.10 Review comments
+20.11 Resolving review feedback
+
+Bab 21. GitHub Issues & Project Management
+
+21.1 Issues
+21.2 Labels
+21.3 Milestones
+21.4 Assignees
+21.5 Issue templates
+21.6 Discussions
+21.7 Projects
+21.8 Kanban workflow
+21.9 Linking issue dengan commit
+21.10 Linking issue dengan Pull Request
+
+Bagian VIII — GitLab
+Bab 22. Mengenal GitLab
+
+22.1 Apa itu GitLab
+22.2 GitLab vs GitHub
+22.3 GitLab.com
+22.4 Self-managed GitLab
+22.5 GitLab architecture secara konseptual
+22.6 Projects
+22.7 Groups
+22.8 Subgroups
+22.9 Namespaces
+
+Bab 23. GitLab Repository
+
+23.1 Membuat project
+23.2 Repository
+23.3 README
+23.4 .gitignore
+23.5 Protected branches
+23.6 Tags
+23.7 Releases
+23.8 Project settings
+
+Bab 24. GitLab Collaboration
+
+24.1 Merge Request
+24.2 Draft Merge Request
+24.3 Code Review
+24.4 Approval rules
+24.5 Merge strategies
+24.6 Discussions
+24.7 Issue tracking
+24.8 Boards
+24.9 Milestones
+24.10 Merge request workflow
+
+Bab 25. GitHub vs GitLab
+
+25.1 Terminologi
+25.2 Repository
+25.3 Pull Request vs Merge Request
+25.4 Issues
+25.5 Projects
+25.6 CI/CD
+25.7 Packages
+25.8 Registry
+25.9 Security
+25.10 Permissions
+25.11 Self-hosting
+25.12 Enterprise features
+25.13 Kapan memilih GitHub
+25.14 Kapan memilih GitLab
+
+Bagian IX — Git Internals
+Bab 26. Cara Kerja Git di Balik Layar
+
+26.1 Git sebagai content-addressable filesystem
+26.2 .git directory
+26.3 HEAD
+26.4 refs
+26.5 objects
+26.6 index
+26.7 config
+26.8 logs
+26.9 hooks
+
+Bab 27. Git Objects
+
+27.1 Blob
+27.2 Tree
+27.3 Commit object
+27.4 Annotated tag object
+27.5 SHA-1 dan SHA-256
+27.6 Object database
+27.7 Object hash
+27.8 Object relationships
+
+Bab 28. Git Index & Staging Area
+
+28.1 Apa itu index
+28.2 Hubungan index dengan staging
+28.3 git ls-files
+28.4 Index internals
+28.5 Intent-to-add
+28.6 Partial staging
+28.7 Index conflicts
+
+Bab 29. Git References
+
+29.1 HEAD
+29.2 Branch refs
+29.3 Remote refs
+29.4 Tags
+29.5 Symbolic refs
+29.6 Packed refs
+29.7 Refspec
+
+Bab 30. Git Object Storage
+
+30.1 Loose objects
+30.2 Packfiles
+30.3 Delta compression
+30.4 Garbage collection
+30.5 Repacking
+30.6 Pruning
+30.7 Repository optimization
+
+Bagian X — Advanced Git
+Bab 31. Advanced Branching
+
+31.1 Detached HEAD
+31.2 Orphan branch
+31.3 Multiple worktrees
+31.4 git worktree
+31.5 Branch tracking
+31.6 Branch upstream
+31.7 Complex branch topology
+
+Bab 32. Advanced History Manipulation
+
+32.1 Interactive rebase
+32.2 fixup!
+32.3 squash!
+32.4 Autosquash
+32.5 Cherry-pick
+32.6 Revert merge commit
+32.7 Transplanting commits
+32.8 History rewriting
+
+Bab 33. Cherry-Pick
+
+33.1 Konsep cherry-pick
+33.2 Single commit
+33.3 Multiple commits
+33.4 Range commit
+33.5 Cherry-pick conflict
+33.6 Cherry-pick vs merge
+33.7 Cherry-pick vs rebase
+
+Bab 34. Git Bisect
+
+34.1 Debugging dengan Git history
+34.2 git bisect start
+34.3 Good commit
+34.4 Bad commit
+34.5 Automated bisect
+34.6 git bisect run
+34.7 Studi kasus mencari bug
+
+Bab 35. Git Blame & History Analysis
+
+35.1 git blame
+35.2 git log advanced
+35.3 git show
+35.4 git diff advanced
+35.5 git log --graph
+35.6 git log --follow
+35.7 Search commit
+35.8 Search code history
+
+Bab 36. Git Reflog & Recovery Advanced
+
+36.1 HEAD reflog
+36.2 Branch reflog
+36.3 Remote reflog
+36.4 Recovery strategy
+36.5 Recover corrupted history
+36.6 Object recovery
+
+Bagian XI — Git Workflow di Dunia Profesional
+Bab 37. Git Flow
+
+37.1 Konsep Git Flow
+37.2 Feature branch
+37.3 Develop branch
+37.4 Release branch
+37.5 Hotfix branch
+37.6 Kelebihan dan kekurangan
+
+Bab 38. GitHub Flow
+
+38.1 Konsep
+38.2 Feature branch
+38.3 Pull Request
+38.4 Review
+38.5 Deployment
+38.6 Kapan digunakan
+
+Bab 39. Trunk-Based Development
+
+39.1 Konsep trunk
+39.2 Short-lived branch
+39.3 Continuous integration
+39.4 Feature flags
+39.5 Branch by abstraction
+39.6 Trunk-based vs Git Flow
+
+Bab 40. Conventional Commits
+
+40.1 Commit semantic
+40.2 feat
+40.3 fix
+40.4 docs
+40.5 refactor
+40.6 test
+40.7 chore
+40.8 Breaking changes
+40.9 Automated changelog
+
+Bab 41. Semantic Versioning
+
+41.1 MAJOR
+41.2 MINOR
+41.3 PATCH
+41.4 Pre-release
+41.5 Build metadata
+41.6 Git tags dan versioning
+41.7 Release strategy
+
+Bagian XII — GitHub Advanced
+Bab 42. GitHub Actions
+
+42.1 Konsep GitHub Actions
+42.2 Workflow
+42.3 Events
+42.4 Jobs
+42.5 Steps
+42.6 Actions
+42.7 Runners
+42.8 Secrets
+42.9 Variables
+42.10 Environments
+42.11 Artifacts
+42.12 Caching
+42.13 Matrix strategy
+42.14 Reusable workflows
+42.15 Composite actions
+
+Bab 43. GitHub CI/CD
+
+43.1 Continuous Integration
+43.2 Continuous Delivery
+43.3 Continuous Deployment
+43.4 Build pipeline
+43.5 Test pipeline
+43.6 Deployment pipeline
+43.7 Environment promotion
+43.8 Approval workflow
+43.9 Rollback
+
+Bab 44. GitHub Security
+
+44.1 Authentication
+44.2 SSH keys
+44.3 Personal Access Token
+44.4 Fine-grained token
+44.5 Secrets management
+44.6 Dependabot
+44.7 Code scanning
+44.8 Secret scanning
+44.9 Branch protection
+44.10 Rulesets
+44.11 Security advisories
+44.12 Supply-chain security
+
+Bab 45. GitHub Packages & Releases
+
+45.1 GitHub Releases
+45.2 Release notes
+45.3 GitHub Packages
+45.4 Container Registry
+45.5 Package versioning
+45.6 Artifact management
+
+Bagian XIII — GitLab Advanced
+Bab 46. GitLab CI/CD
+
+46.1 .gitlab-ci.yml
+46.2 Pipeline
+46.3 Stages
+46.4 Jobs
+46.5 Scripts
+46.6 Runners
+46.7 Variables
+46.8 Secrets
+46.9 Artifacts
+46.10 Cache
+46.11 Dependencies
+46.12 Rules
+46.13 Workflow rules
+46.14 Matrix jobs
+46.15 Child pipelines
+46.16 Parent-child pipeline
+46.17 Multi-project pipeline
+
+Bab 47. GitLab DevSecOps
+
+47.1 DevSecOps
+47.2 SAST
+47.3 DAST
+47.4 Dependency scanning
+47.5 Container scanning
+47.6 Secret detection
+47.7 Vulnerability management
+47.8 Security dashboards
+
+Bab 48. GitLab Package & Container Registry
+
+48.1 Package Registry
+48.2 Container Registry
+48.3 Image tagging
+48.4 Docker authentication
+48.5 Image lifecycle
+48.6 Artifact management
+
+Bab 49. GitLab Administration
+
+49.1 GitLab.com vs Self-Managed
+49.2 User management
+49.3 Groups
+49.4 Roles
+49.5 Permissions
+49.6 Protected branches
+49.7 Protected tags
+49.8 Runners
+49.9 Backup
+49.10 Restore
+49.11 Monitoring
+49.12 Upgrade GitLab
+
+Bagian XIV — Authentication & Security
+Bab 50. Git Authentication
+
+50.1 HTTPS authentication
+50.2 SSH authentication
+50.3 SSH key pair
+50.4 ssh-agent
+50.5 Multiple SSH keys
+50.6 Credential manager
+50.7 PAT
+50.8 OAuth
+50.9 SSO
+50.10 MFA
+
+Bab 51. Git Security
+
+51.1 Credential leakage
+51.2 Secret leakage
+51.3 .env dalam repository
+51.4 Removing secrets from history
+51.5 Secret rotation
+51.6 Signed commits
+51.7 GPG signing
+51.8 SSH commit signing
+51.9 Verification
+51.10 Supply-chain attacks
+
+Bab 52. Repository Security
+
+52.1 Branch protection
+52.2 CODEOWNERS
+52.3 Required reviews
+52.4 Required status checks
+52.5 Merge restrictions
+52.6 Protected tags
+52.7 Least privilege
+52.8 Repository access control
+
+Bagian XV — Git untuk Team & Enterprise
+Bab 53. Git Collaboration at Scale
+
+53.1 Repository strategy
+53.2 Monorepo
+53.3 Polyrepo
+53.4 Repository boundaries
+53.5 Ownership
+53.6 Code ownership
+53.7 Large teams
+53.8 Long-lived projects
+
+Bab 54. Code Review Engineering
+
+54.1 Tujuan code review
+54.2 Review checklist
+54.3 Small Pull/Merge Request
+54.4 Review etiquette
+54.5 Automated review
+54.6 Approval policies
+54.7 Handling disagreements
+54.8 Review anti-patterns
+
+Bab 55. Release Engineering
+
+55.1 Release branch
+55.2 Release candidate
+55.3 Tags
+55.4 Versioning
+55.5 Changelog
+55.6 Artifact
+55.7 Deployment
+55.8 Rollback
+55.9 Hotfix
+55.10 Release automation
+
+Bagian XVI — Advanced Repository Management
+Bab 56. Large Repository
+
+56.1 Masalah repository besar
+56.2 Repository performance
+56.3 Large files
+56.4 Git LFS
+56.5 Shallow clone
+56.6 Partial clone
+56.7 Sparse checkout
+56.8 Sparse index
+56.9 Maintenance
+
+Bab 57. Git LFS
+
+57.1 Masalah binary files
+57.2 Instalasi Git LFS
+57.3 Tracking file
+57.4 .gitattributes
+57.5 Push/pull LFS
+57.6 Migrasi ke LFS
+57.7 LFS di GitHub
+57.8 LFS di GitLab
+
+Bab 58. Monorepo
+
+58.1 Konsep monorepo
+58.2 Keuntungan
+58.3 Kekurangan
+58.4 Git untuk monorepo
+58.5 Sparse checkout
+58.6 Partial clone
+58.7 Build optimization
+58.8 CI/CD monorepo
+58.9 Ownership
+
+Bagian XVII — Git Plumbing & Automation
+Bab 59. Git Plumbing Commands
+
+59.1 Porcelain vs plumbing
+59.2 git cat-file
+59.3 git hash-object
+59.4 git update-index
+59.5 git write-tree
+59.6 git commit-tree
+59.7 git update-ref
+59.8 Membuat commit secara manual
+
+Bab 60. Git Hooks
+
+60.1 Konsep hooks
+60.2 Client-side hooks
+60.3 Server-side hooks
+60.4 pre-commit
+60.5 prepare-commit-msg
+60.6 commit-msg
+60.7 pre-push
+60.8 post-merge
+60.9 pre-receive
+60.10 update
+60.11 post-receive
+
+Bab 61. Automasi Git
+
+61.1 Shell scripting dengan Git
+61.2 Git aliases
+61.3 Git hooks
+61.4 Automated commit checks
+61.5 Automated versioning
+61.6 Automated changelog
+61.7 Git dalam CI/CD
+61.8 Git API
+
+Bagian XVIII — GitHub & GitLab API
+Bab 62. GitHub API
+
+62.1 REST API
+62.2 GraphQL API
+62.3 Authentication
+62.4 Repository API
+62.5 Issues API
+62.6 Pull Request API
+62.7 Actions API
+62.8 Release API
+62.9 Automation dengan API
+
+Bab 63. GitLab API
+
+63.1 REST API
+63.2 GraphQL
+63.3 Authentication
+63.4 Project API
+63.5 Merge Request API
+63.6 Pipeline API
+63.7 Release API
+63.8 Automation
+
+Bab 64. GitHub CLI & GitLab CLI
+
+64.1 GitHub CLI
+64.2 Authentication
+64.3 Repository management
+64.4 Pull Request automation
+64.5 Issue automation
+64.6 GitLab CLI
+64.7 Automation workflow
+
+Bagian XIX — Troubleshooting
+Bab 65. Git Troubleshooting
+
+65.1 Merge conflict
+65.2 Rebase conflict
+65.3 Detached HEAD
+65.4 Wrong commit
+65.5 Wrong branch
+65.6 Lost commit
+65.7 Accidental reset
+65.8 Accidental force push
+65.9 Push rejected
+65.10 Authentication failure
+65.11 Non-fast-forward
+65.12 Diverged branch
+65.13 Corrupted repository
+
+Bab 66. GitHub Troubleshooting
+
+66.1 Push rejected
+66.2 Authentication problem
+66.3 Permission denied
+66.4 Branch protection error
+66.5 Failed GitHub Actions
+66.6 Failed Pull Request
+66.7 Secret detection blocking push
+66.8 Large file problem
+
+Bab 67. GitLab Troubleshooting
+
+67.1 Push rejected
+67.2 Permission problems
+67.3 Protected branch
+67.4 Failed pipeline
+67.5 Runner problems
+67.6 Registry problems
+67.7 Merge Request problems
+
+Bagian XX — Studi Kasus Nyata
+Bab 68. Studi Kasus 1 — Project Solo
+
+68.1 Inisialisasi project
+68.2 Branching
+68.3 Commit strategy
+68.4 Remote repository
+68.5 Release
+68.6 Tagging
+
+Bab 69. Studi Kasus 2 — Tim Developer
+
+69.1 Membuat repository
+69.2 Branch strategy
+69.3 Pull/Merge Request
+69.4 Code review
+69.5 Conflict resolution
+69.6 Release
+
+Bab 70. Studi Kasus 3 — Open Source
+
+70.1 Fork
+70.2 Issue
+70.3 Feature branch
+70.4 Pull Request
+70.5 Maintainer review
+70.6 Contribution workflow
+
+Bab 71. Studi Kasus 4 — CI/CD
+
+71.1 Source code
+71.2 Automated testing
+71.3 Build
+71.4 Artifact
+71.5 Deployment
+71.6 Rollback
+
+Bab 72. Studi Kasus 5 — Migrasi GitHub → GitLab
+
+72.1 Analisis repository
+72.2 Migrasi history
+72.3 Migrasi branches
+72.4 Migrasi tags
+72.5 Migrasi issues
+72.6 Migrasi CI/CD
+72.7 Migrasi secrets
+72.8 Validasi hasil migrasi
+
+Bab 73. Studi Kasus 6 — Repository Bermasalah
+
+73.1 Secret terlanjur di-commit
+73.2 Branch terhapus
+73.3 Commit hilang
+73.4 Force push
+73.5 History rusak
+73.6 Recovery strategy
+
+Bagian XXI — Best Practices
+Bab 74. Git Best Practices
+
+74.1 Commit kecil dan atomic
+74.2 Commit message berkualitas
+74.3 Jangan commit secret
+74.4 Jangan bekerja langsung di main
+74.5 Pull sebelum bekerja
+74.6 Hindari force push sembarangan
+74.7 Gunakan --force-with-lease
+74.8 Rebase sebelum PR
+74.9 Tag release
+74.10 Backup repository
+
+Bab 75. Team Git Best Practices
+
+75.1 Branching policy
+75.2 Commit policy
+75.3 Pull/Merge Request policy
+75.4 Review policy
+75.5 Release policy
+75.6 Security policy
+75.7 CI policy
+75.8 Repository governance
+
+Bab 76. Anti-Patterns Git
+
+76.1 Giant commit
+76.2 Commit “fix fix fix”
+76.3 Long-lived feature branch
+76.4 Force push ke main
+76.5 Commit secret
+76.6 Binary files tanpa LFS
+76.7 Merge tanpa memahami history
+76.8 Rebase branch publik
+76.9 Menggunakan Git tanpa memahami HEAD
+
+Bagian XXII — Capstone Project
+Bab 77. Project Akhir: Professional Git Workflow
+
+77.1 Membuat project
+77.2 Membuat repository
+77.3 Branch strategy
+77.4 Conventional commits
+77.5 Pull/Merge Request
+77.6 Code review
+77.7 Branch protection
+77.8 Automated testing
+77.9 CI/CD
+77.10 Release
+77.11 Semantic versioning
+77.12 Security scanning
+77.13 Deployment
+77.14 Rollback
+77.15 Post-release maintenance
+
+Bab 78. Project Akhir: GitHub
+
+78.1 Repository architecture
+78.2 Issues
+78.3 Projects
+78.4 Pull Requests
+78.5 CODEOWNERS
+78.6 GitHub Actions
+78.7 Secrets
+78.8 Release
+78.9 Package Registry
+78.10 Security
+
+Bab 79. Project Akhir: GitLab
+
+79.1 Group/project architecture
+79.2 Issues
+79.3 Merge Requests
+79.4 Protected branches
+79.5 GitLab CI/CD
+79.6 Variables
+79.7 Runner
+79.8 Container Registry
+79.9 Security scanning
+79.10 Deployment
+
+Bagian XXIII — Reference & Cheat Sheet
+Bab 80. Git Command Reference
+
+80.1 Repository commands
+80.2 Configuration commands
+80.3 File commands
+80.4 Commit commands
+80.5 Branch commands
+80.6 Merge commands
+80.7 Rebase commands
+80.8 Remote commands
+80.9 Tag commands
+80.10 Stash commands
+80.11 Recovery commands
+80.12 Diagnostic commands
+80.13 Advanced commands
+
+Bab 81. GitHub Reference
+
+81.1 GitHub terminology
+81.2 Pull Request reference
+81.3 GitHub Actions reference
+81.4 GitHub security reference
+81.5 GitHub CLI reference
+
+Bab 82. GitLab Reference
+
+82.1 GitLab terminology
+82.2 Merge Request reference
+82.3 GitLab CI/CD reference
+82.4 GitLab security reference
+82.5 GitLab CLI reference
+
+Bab 83. Git Cheat Sheet
+
+83.1 Daily Git commands
+83.2 Branching cheat sheet
+83.3 Merge cheat sheet
+83.4 Rebase cheat sheet
+83.5 Undo cheat sheet
+83.6 Recovery cheat sheet
+83.7 Remote cheat sheet
+83.8 GitHub cheat sheet
+83.9 GitLab cheat sheet
+
+📚 Lampiran
+Lampiran A — Glossary Git
+
+Istilah-istilah Git dari A–Z.
+
+Lampiran B — Glossary GitHub
+
+Istilah GitHub dari A–Z.
+
+Lampiran C — Glossary GitLab
+
+Istilah GitLab dari A–Z.
+
+Lampiran D — .gitignore Reference
+Lampiran E — Git Configuration Reference
+Lampiran F — Conventional Commits Reference
+Lampiran G — Semantic Versioning Reference
+Lampiran H — Git Troubleshooting Decision Tree
+Lampiran I — Git Interview Questions
+Basic
+Intermediate
+Advanced
+Git internals
+GitHub
+GitLab
+CI/CD
+DevOps
+Lampiran J — Latihan & Soal
+Beginner
+Intermediate
+Advanced
+Case study
+Troubleshooting
+Challenge
+Lampiran K — Daftar Proyek Latihan
+Personal project
+Team project
+Open-source project
+CI/CD project
+Monorepo
+GitHub Actions
+GitLab CI
+DevSecOps
+🧭 Struktur pembelajaran yang saya rekomendasikan
+
+Agar buku ini tidak terasa seperti dokumentasi Git yang panjang, saya akan membaginya menjadi 4 level kompetensi:
+
+Level	Fokus	Hasil akhir
+🟢 Level 1 — Beginner	Bab 1–17	Bisa menggunakan Git sehari-hari
+🔵 Level 2 — Intermediate	Bab 18–25, 37–41	Bisa bekerja dalam tim dengan GitHub/GitLab
+🟠 Level 3 — Advanced	Bab 26–36, 42–49	Memahami internals, CI/CD, security, advanced Git
+🔴 Level 4 — Professional	Bab 50–79	Mampu merancang workflow Git/DevOps untuk tim & enterprise
