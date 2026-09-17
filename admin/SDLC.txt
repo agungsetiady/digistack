@@ -1,0 +1,94 @@
+Panduan Lengkap SDLC di Era AI
+
+ Daftar Isi Course
+
+
+
+ Bab 1: Pengenalan SDLC dan Disrupsi AI
+
+1. Konsep Dasar SDLC: Evolusi Metodologi (Waterfall, Agile, DevOps)
+2. Peran AI dalam Software Engineering: Mengapa SDLC Perlu Bertransformasi?
+3. Peta Alat AI (AI Toolstack) di Setiap Tahap Pengembangan
+4. Mindset Baru Developer & Tim IT di Era AI
+
+
+
+ Bab 2: Analisis Kebutuhan & Perancangan Sistem (Requirement & Design)
+
+1. Penyusunan PRD (Product Requirement Document) dengan AI
+2. Desain Arsitektur Sistem & Pemilihan Tech Stack Berbasis AI
+3. Pembuatan Prototyping & Wireframing Cepat (AI-Driven Prototyping)
+4. Analisis Risiko & Estimasi Effort Proyek dengan Bantuan AI
+
+
+
+ Bab 3: Pengodingan Berbasis AI (AI-Assisted Coding & Implementation)
+
+1. Mengenal & Mengonfigurasi AI Coding Assistant (GitHub Copilot, Cursor, Tabnine)
+2. Teknik Prompt Engineering Khusus Developer: Mengirimkan Konteks Kode yang Efektif
+3. Generasi Kode, Refactoring, dan Dokumentasi Otomatis
+4. Pengembangan Komponen Frontend & Backend Lebih Cepat
+
+
+
+ Bab 4: Pengujian & Kualitas Perangkat Lunak (AI-Driven Testing & QA)
+
+1. Otomatisasi Pembuatan Unit Test & Integration Test dengan AI
+2. Generasi Mock Data dan Skenario Uji Edge-Case
+3. Pendeteksian & Pembenahan Bug (AI-Powered Debugging & Patching)
+4. Pengujian Kinerja (Performance & Load Testing) Menggunakan AI
+
+
+
+ Bab 5: Integrasi, Rilis, dan CI/CD Berbasis AI
+
+1. Transformasi Pipeline CI/CD dengan AI Automation
+2. Otomatisasi Automated Code Review dan Pull Request Analysis
+3. Manajemen Ketergantungan (Dependency & Package Management)
+4. Strategi Deployment Minim Risiko dengan AI Incident Early Warning
+
+
+
+ Bab 6: Operasional, Pemeliharaan, dan AI Observability
+
+1. Pemantauan Sistem & Log Analysis Berbasis AI (AIOps)
+2. Pendeteksian Anomali (Anomaly Detection) secara Real-Time
+3. Root Cause Analysis (RCA) Otomatis Saat Terjadi Downtime
+4. Refactoring Berkelanjutan & Manajemen Tech Debt di Era AI
+
+
+
+ Bab 7: Keamanan Perangkat Lunak (AI-Enhanced Security / DevSecOps)
+
+1. Analisis Kerentanan Kode (Vulnerability Scanning) Berbasis AI
+2. Keamanan Kode yang Dihasilkan AI (Securing AI-Generated Code)
+3. Perlindungan Terhadap Prompt Injection & Kebocoran Data Sensitif
+4. Kepatuhan (Compliance) dan Privasi Kode di Lingkungan Enterprise
+
+
+
+ Bab 8: AI Native & Agentic Software Engineering (Advanced)
+
+1. Mengenal Concept Agentic AI dalam Software Engineering
+2. Membangun Workflow Otonom dengan Multi-Agent Systems
+3. Integrasi LLM & RAG ke Dalam Aplikasi Internal
+4. Masa Depan "Self-Healing Software" dan Autonomous Coding
+
+
+
+ Bab 9: Tata Kelola, Etika, dan Manajemen Tim
+
+1. Etika Penggunaan AI dalam Pengembangan Perangkat Lunak
+2. Hak Cipta Kode (Copyright) dan Isu Lisensi Open-Source Berbasis AI
+3. Evaluasi Produktivitas Tim Development Tanpa Mengorbankan Kualitas
+4. Pelatihan dan Upskilling Tim IT untuk Menerapkan AI SDLC
+
+
+
+ Bab 10: Capstone Project: End-to-End AI-Driven SDLC
+
+1. Studi Kasus: Membangun Aplikasi Skala Enterprise dari Nol
+2. Eksekusi Fase Tahap demi Tahap (Ideasi, Coding, QA, hingga Deploy)
+3. Evaluasi Efisiensi: Membandingkan Metode Tradisional vs AI SDLC
+4. Kesimpulan dan Roadmap Penguatan Skill Pengembang Masa Depan
+

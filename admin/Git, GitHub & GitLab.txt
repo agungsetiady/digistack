@@ -50,7 +50,7 @@ Bab 4. Repository dan Git Workflow
 
 4.1 Apa itu repository
 4.2 Working directory
-4.3 Staging area
+4.3 Staging area -----------> sampai sini
 4.4 Repository
 4.5 Commit
 4.6 HEAD

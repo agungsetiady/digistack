@@ -268,6 +268,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Fetch Modules
 $all_modules = $pdo->query("SELECT m.id, m.title, c.title as course_title FROM modules m JOIN courses c ON m.course_id = c.id ORDER BY c.title ASC, m.order_position ASC")->fetchAll();
 
+// Fetch Topic yang materinya masih kosong (belum punya row topic_contents,
+// atau punya row tapi content_markdown & summary_tldr sama-sama kosong)
+$empty_topics = $pdo->query("SELECT t.id, t.module_id, t.title, t.slug, t.order_position, t.estimated_read_time,
+                                    m.title as module_title, c.title as course_title
+                             FROM topics t
+                             JOIN modules m ON t.module_id = m.id
+                             JOIN courses c ON m.course_id = c.id
+                             LEFT JOIN topic_contents tc ON t.id = tc.topic_id
+                             WHERE tc.id IS NULL
+                                OR (TRIM(COALESCE(tc.content_markdown, '')) = ''
+                                    AND TRIM(COALESCE(tc.summary_tldr, '')) = '')
+                             ORDER BY c.title ASC, m.order_position ASC, t.order_position ASC, t.id ASC")->fetchAll();
+
 // Fetch Model AI Aktif
 $active_ai_models = $pdo->query("SELECT m.id, m.display_name, p.name as provider_name 
                                  FROM ai_models m 
@@ -443,10 +456,52 @@ $topics = $stmt->fetchAll();
             <input type="hidden" name="action" value="save">
             <input type="hidden" name="id" id="topic_id">
             <input type="hidden" name="generation_type" id="generation_type" value="manual">
+            <input type="hidden" id="picked_empty_topic" value="">
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-y-auto pr-1 flex-1 pb-2">
                 <!-- Kolom Kiri -->
                 <div class="lg:col-span-5 space-y-3.5">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5 gap-2">
+                            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Judul Topic Sub-bab</label>
+                            <?php if (!empty($empty_topics)): ?>
+                                <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-semibold">
+                                    <i class='bx bx-error-circle text-xs'></i>
+                                    <?= count($empty_topics) ?> topic belum ada materi
+                                </span>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="relative" id="titleComboWrapper">
+                            <input type="text" name="title" id="title" required autocomplete="off"
+                                   placeholder="Ketik judul baru, atau pilih topic yang masih kosong"
+                                   class="w-full pl-3.5 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                            <button type="button" id="btnToggleEmptyTopics" title="Lihat topic yang materinya masih kosong"
+                                    class="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                                <i class='bx bx-chevron-down text-lg' id="iconToggleEmptyTopics"></i>
+                            </button>
+
+                            <!-- Dropdown pilihan topic kosong -->
+                            <div id="emptyTopicDropdown" class="hidden absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                                <div class="px-3 py-2 border-b border-slate-100 sticky top-0 bg-white">
+                                    <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Topic tanpa materi (konten &amp; TL;DR kosong)</p>
+                                </div>
+                                <div id="emptyTopicList"></div>
+                            </div>
+                        </div>
+
+                        <!-- Badge saat admin memilih topic kosong dari daftar -->
+                        <div id="pickedTopicBadge" class="hidden mt-1.5 flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                            <i class='bx bx-link text-sm text-emerald-600 mt-px'></i>
+                            <span class="flex-1 text-[10px] leading-snug text-emerald-800">
+                                Mengisi materi untuk topic yang sudah ada: <span class="font-semibold" id="pickedTopicName"></span>
+                            </span>
+                            <button type="button" onclick="clearPickedTopic(true)" class="shrink-0 text-emerald-600 hover:text-rose-600 transition-colors" title="Batalkan pilihan, kembali ke input manual">
+                                <i class='bx bx-x text-sm'></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Induk Module (Bab)</label>
                         <select name="module_id" id="module_id" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
@@ -455,11 +510,6 @@ $topics = $stmt->fetchAll();
                                 <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['course_title']) ?> &raquo; <?= htmlspecialchars($m['title']) ?></option>
                             <?php endforeach; ?>
                         </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Judul Topic Sub-bab</label>
-                        <input type="text" name="title" id="title" required placeholder="misal: Membuat Dynamic Routing PHP" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
                     </div>
 
                     <div class="grid grid-cols-3 gap-3">
@@ -536,8 +586,125 @@ function generateSlug(text) {
         .replace(/-+$/, '');
 }
 
+/* ===========================================================
+   Judul Topic: input manual + pilihan topic yang materinya kosong
+   =========================================================== */
+const EMPTY_TOPICS = <?= json_encode($empty_topics ?: [], JSON_UNESCAPED_UNICODE) ?>;
+
+function escapeHtmlText(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+}
+
+function renderEmptyTopicList(keyword) {
+    const box = document.getElementById('emptyTopicList');
+    const q   = (keyword || '').toLowerCase().trim();
+
+    const list = EMPTY_TOPICS.filter(t =>
+        !q ||
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.module_title || '').toLowerCase().includes(q) ||
+        (t.course_title || '').toLowerCase().includes(q)
+    );
+
+    if (!EMPTY_TOPICS.length) {
+        box.innerHTML = '<p class="px-3 py-4 text-[11px] text-center text-slate-400">Semua topic sudah memiliki materi.</p>';
+        return;
+    }
+
+    if (!list.length) {
+        box.innerHTML = '<p class="px-3 py-4 text-[11px] text-center text-slate-400">Tidak ada topic kosong yang cocok. Lanjutkan mengetik untuk membuat topic baru.</p>';
+        return;
+    }
+
+    box.innerHTML = list.map(t => `
+        <button type="button" data-topic-id="${t.id}"
+                class="empty-topic-option w-full text-left px-3 py-2 hover:bg-indigo-50 border-b border-slate-50 last:border-b-0 transition-colors">
+            <span class="block text-xs font-semibold text-slate-800 leading-snug">${escapeHtmlText(t.title)}</span>
+            <span class="block text-[10px] text-slate-400 mt-0.5">${escapeHtmlText(t.course_title)} &raquo; ${escapeHtmlText(t.module_title)}</span>
+        </button>
+    `).join('');
+
+    box.querySelectorAll('.empty-topic-option').forEach(btn => {
+        btn.addEventListener('click', () => pickEmptyTopic(parseInt(btn.dataset.topicId)));
+    });
+}
+
+function openEmptyTopicDropdown(keyword) {
+    renderEmptyTopicList(keyword);
+    document.getElementById('emptyTopicDropdown').classList.remove('hidden');
+    document.getElementById('iconToggleEmptyTopics').classList.replace('bx-chevron-down', 'bx-chevron-up');
+}
+
+function closeEmptyTopicDropdown() {
+    document.getElementById('emptyTopicDropdown').classList.add('hidden');
+    document.getElementById('iconToggleEmptyTopics').classList.replace('bx-chevron-up', 'bx-chevron-down');
+}
+
+function pickEmptyTopic(topicId) {
+    const t = EMPTY_TOPICS.find(x => parseInt(x.id) === topicId);
+    if (!t) return;
+
+    document.getElementById('title').value  = t.title;
+    document.getElementById('slug').value   = t.slug || generateSlug(t.title);
+    document.getElementById('module_id').value = t.module_id;
+    document.getElementById('estimated_read_time').value = t.estimated_read_time || 5;
+
+    // Tandai sebagai pengisian materi untuk topic yang sudah ada (bukan bikin topic baru)
+    document.getElementById('topic_id').value = t.id;
+    document.getElementById('picked_empty_topic').value = t.id;
+
+    document.getElementById('pickedTopicName').innerText = t.title;
+    document.getElementById('pickedTopicBadge').classList.remove('hidden');
+
+    closeEmptyTopicDropdown();
+}
+
+function clearPickedTopic(alsoClearTitle) {
+    if (document.getElementById('picked_empty_topic').value) {
+        document.getElementById('topic_id').value = '';
+    }
+    document.getElementById('picked_empty_topic').value = '';
+    document.getElementById('pickedTopicBadge').classList.add('hidden');
+
+    if (alsoClearTitle) {
+        document.getElementById('title').value = '';
+        document.getElementById('slug').value = '';
+        document.getElementById('title').focus();
+    }
+}
+
 document.getElementById('title').addEventListener('input', function() {
     document.getElementById('slug').value = generateSlug(this.value);
+
+    // Admin mulai mengetik manual -> batalkan keterkaitan dengan topic yang dipilih
+    clearPickedTopic(false);
+
+    if (this.value.trim()) {
+        openEmptyTopicDropdown(this.value);
+    } else {
+        closeEmptyTopicDropdown();
+    }
+});
+
+document.getElementById('title').addEventListener('focus', function () {
+    if (!document.getElementById('picked_empty_topic').value) {
+        openEmptyTopicDropdown(this.value);
+    }
+});
+
+document.getElementById('btnToggleEmptyTopics').addEventListener('click', function () {
+    const dd = document.getElementById('emptyTopicDropdown');
+    if (dd.classList.contains('hidden')) {
+        openEmptyTopicDropdown('');
+    } else {
+        closeEmptyTopicDropdown();
+    }
+});
+
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('#titleComboWrapper')) closeEmptyTopicDropdown();
 });
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -631,6 +798,10 @@ function openModal() {
     document.getElementById('topic_id').value = '';
     document.getElementById('generation_type').value = 'manual';
     document.getElementById('modalTitle').innerText = 'Tambah Topic Baru';
+
+    document.getElementById('picked_empty_topic').value = '';
+    document.getElementById('pickedTopicBadge').classList.add('hidden');
+    closeEmptyTopicDropdown();
     
     isProgrammaticFill = true;
     if (toastEditor) toastEditor.setMarkdown('');
@@ -707,6 +878,10 @@ function editData(id) {
             isProgrammaticFill = false;
 
             document.getElementById('modalTitle').innerText = 'Edit Topic & Content';
+
+            document.getElementById('picked_empty_topic').value = '';
+            document.getElementById('pickedTopicBadge').classList.add('hidden');
+            closeEmptyTopicDropdown();
 
             const modal = document.getElementById('topicModal');
             const container = document.getElementById('modalContainer');
