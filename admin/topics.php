@@ -181,10 +181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt->execute([$module_id, $title, $slug, $order_position, $estimated_read_time, $id]);
 
                 // Update or Insert Content
-                $stmtContent = $pdo->prepare("INSERT INTO topic_contents (topic_id, content_markdown, summary_tldr) 
-                                              VALUES (?, ?, ?) 
-                                              ON DUPLICATE KEY UPDATE content_markdown = VALUES(content_markdown), summary_tldr = VALUES(summary_tldr)");
-                $stmtContent->execute([$id, $content_markdown, $summary_tldr]);
+                $stmtContent = $pdo->prepare("INSERT INTO topic_contents (topic_id, content_markdown, summary_tldr, generation_type) 
+                                              VALUES (?, ?, ?, ?) 
+                                              ON DUPLICATE KEY UPDATE content_markdown = VALUES(content_markdown), summary_tldr = VALUES(summary_tldr), generation_type = VALUES(generation_type)");
+                $stmtContent->execute([$id, $content_markdown, $summary_tldr, $generation_type]);
 
                 $pdo->commit();
                 echo json_encode(['status' => 'success', 'message' => 'Topic & materi berhasil diperbarui']);
@@ -291,7 +291,7 @@ $active_ai_models = $pdo->query("SELECT m.id, m.display_name, p.name as provider
 // --- DATA FETCHING & PAGINATION ---
 $search = trim($_GET['q'] ?? '');
 $page   = max(1, (int)($_GET['p'] ?? 1));
-$limit  = 20;
+$limit  = 30;
 $offset = ($page - 1) * $limit;
 
 $whereClause = $search ? "WHERE t.title LIKE ? OR m.title LIKE ?" : "";
@@ -455,7 +455,7 @@ $topics = $stmt->fetchAll();
         <form id="topicForm" onsubmit="saveData(event)" class="flex flex-col flex-1 overflow-hidden px-4 py-3 sm:px-5">
             <input type="hidden" name="action" value="save">
             <input type="hidden" name="id" id="topic_id">
-            <input type="hidden" name="generation_type" id="generation_type" value="manual">
+            <input type="hidden" name="generation_type" id="generation_type" value="ai_generated">
             <input type="hidden" id="picked_empty_topic" value="">
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-y-auto pr-1 flex-1 pb-2">
@@ -775,7 +775,19 @@ function generateWithAI() {
                 document.getElementById('summary_tldr').value = res.data.summary_tldr || '';
                 document.getElementById('generation_type').value = 'ai_generated';
 
-                isProgrammaticFill = false;
+                // PENTING: Toast UI Editor bisa memicu event 'change' secara
+                // ASINKRON (di tick berikutnya) setelah setMarkdown(), karena
+                // perlu re-render dulu. Kalau isProgrammaticFill sudah di-set
+                // false SEBELUM event itu terpicu, listener 'change' akan
+                // salah menganggap ini input manual dan menimpa balik
+                // generation_type jadi 'manual'. Jeda sejenak dengan
+                // setTimeout supaya event asinkron itu sempat lewat dulu
+                // selagi guard masih aktif, lalu pastikan lagi nilainya
+                // 'ai_generated' sebagai jaminan akhir.
+                setTimeout(function () {
+                    document.getElementById('generation_type').value = 'ai_generated';
+                    isProgrammaticFill = false;
+                }, 50);
 
                 let msg = 'Materi berhasil di-generate oleh AI!';
                 if (res.fallback_used) {
@@ -867,7 +879,8 @@ function editData(id) {
             document.getElementById('title').value = d.title;
             document.getElementById('slug').value = d.slug;
             document.getElementById('estimated_read_time').value = d.estimated_read_time;
-            document.getElementById('generation_type').value = d.generation_type || 'manual';
+            const loadedGenerationType = d.generation_type || 'manual';
+            document.getElementById('generation_type').value = loadedGenerationType;
 
             isProgrammaticFill = true;
             document.getElementById('summary_tldr').value = d.summary_tldr || '';
@@ -875,7 +888,15 @@ function editData(id) {
             if (toastEditor) {
                 toastEditor.setMarkdown(d.content_markdown || '');
             }
-            isProgrammaticFill = false;
+
+            // Sama seperti di generateWithAI(): setMarkdown() bisa memicu
+            // event 'change' secara asinkron, jadi tunda pelepasan guard
+            // dan pastikan lagi nilai generation_type hasil load dari
+            // server tidak tertimpa jadi 'manual' oleh event yang telat.
+            setTimeout(function () {
+                document.getElementById('generation_type').value = loadedGenerationType;
+                isProgrammaticFill = false;
+            }, 50);
 
             document.getElementById('modalTitle').innerText = 'Edit Topic & Content';
 

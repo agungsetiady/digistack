@@ -160,20 +160,24 @@ function renderAuthWidget() {
     ? `<img src="${user.avatar}" alt="${user.name}" class="w-8 h-8 rounded-full object-cover ring-2 ring-white/60">`
     : `<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xs font-bold ring-2 ring-white/60">${initials(user.name)}</div>`;
 
-  widget.innerHTML = `
+    widget.innerHTML = `
     <div class="relative">
-      <button onclick="toggleUserMenu(event)" id="user-menu-trigger" class="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 shadow-sm transition-all hover:shadow">
+      <button onclick="toggleUserMenu(event)" id="user-menu-trigger" class="flex items-center gap-2 pl-1.5 pr-2 lg:pr-3 py-1.5 rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 shadow-sm transition-all hover:shadow">
         ${avatarHtml}
-        <span class="text-sm font-semibold text-slate-700 max-w-[110px] truncate">${user.name}</span>
-        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <span class="hidden lg:inline text-sm font-semibold text-slate-700 max-w-[110px] truncate">${user.name}</span>
+        <svg class="hidden lg:block w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </button>
+
       <div id="user-menu-dropdown" class="hidden absolute right-0 mt-2 w-52 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl overflow-hidden z-50">
         <div class="px-4 py-3 border-b border-slate-100">
           <p class="text-sm font-bold text-slate-800 truncate">${user.name}</p>
           <p class="text-xs text-slate-500 truncate">${user.email}</p>
         </div>
+
         <button onclick="logoutUser()" class="w-full text-left px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
           Keluar
         </button>
       </div>

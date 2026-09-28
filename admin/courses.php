@@ -3,6 +3,55 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/auth.php';
 check_admin_login();
 
+// --- COVER IMAGE HELPERS ---
+const COVER_DIR      = __DIR__ . '/../assets/img/';   // root/assets/img/
+const COVER_MAX_SIZE = 2 * 1024 * 1024;               // 2 MB
+
+// "Pengantar Android" -> "pengantar_android"
+function cover_basename(string $title): string {
+    $t = preg_replace('/[^a-z0-9]+/', '_', strtolower(trim($title)));
+    $t = trim($t, '_');
+    return substr($t !== '' ? $t : 'course', 0, 100);
+}
+
+// Validasi file upload, kembalikan ekstensi (jpg/png/webp)
+function cover_validate_upload(array $f): string {
+    if ($f['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload gambar gagal (kode error ' . $f['error'] . ').');
+    }
+    if ($f['size'] > COVER_MAX_SIZE) {
+        throw new RuntimeException('Ukuran gambar maksimal 2 MB.');
+    }
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);
+    $map  = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    if (!isset($map[$mime]) || !@getimagesize($f['tmp_name'])) {
+        throw new RuntimeException('Format gambar harus JPG, PNG, atau WEBP.');
+    }
+    return $map[$mime];
+}
+
+// Apakah file cover ini dipakai course lain?
+function cover_used_by_others(PDO $pdo, string $name, int $exceptId): bool {
+    $s = $pdo->prepare("SELECT COUNT(*) FROM courses WHERE cover_image = ? AND id <> ?");
+    $s->execute([$name, $exceptId]);
+    return $s->fetchColumn() > 0;
+}
+
+// Nama file unik; kalau bentrok dengan course lain, tambahkan suffix _{id}
+function cover_unique_name(PDO $pdo, string $base, string $ext, int $id): string {
+    $name = "$base.$ext";
+    return cover_used_by_others($pdo, $name, $id) ? "{$base}_{$id}.$ext" : $name;
+}
+
+// Hapus file cover dari disk (kalau tidak dipakai course lain)
+function cover_delete(PDO $pdo, ?string $name, int $exceptId): void {
+    if (!$name) return;
+    $name = basename($name);
+    if (cover_used_by_others($pdo, $name, $exceptId)) return;
+    $path = COVER_DIR . $name;
+    if (is_file($path)) @unlink($path);
+}
+
 // --- AJAX HANDLER ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -17,22 +66,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $icon         = trim($_POST['icon']) ?: 'book';
             $is_published = isset($_POST['is_published']) ? 1 : 0;
 
+            // Validasi upload cover DULU, sebelum ada perubahan di DB
+            $hasUpload = isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] !== UPLOAD_ERR_NO_FILE;
+            $ext = $hasUpload ? cover_validate_upload($_FILES['cover_image']) : null;
+            if ($hasUpload) {
+                if (!is_dir(COVER_DIR) && !mkdir(COVER_DIR, 0755, true)) {
+                    throw new RuntimeException('Folder assets/img tidak bisa dibuat.');
+                }
+                if (!is_writable(COVER_DIR)) {
+                    throw new RuntimeException('Folder assets/img tidak writable.');
+                }
+            }
+
+            $oldCover = null;
             if ($id) {
+                $id = (int)$id;
+                $q = $pdo->prepare("SELECT cover_image FROM courses WHERE id = ?");
+                $q->execute([$id]);
+                $oldCover = $q->fetchColumn() ?: null;
+
                 $stmt = $pdo->prepare("UPDATE courses SET title = ?, slug = ?, description = ?, icon = ?, is_published = ? WHERE id = ?");
                 $stmt->execute([$title, $slug, $description, $icon, $is_published, $id]);
-                echo json_encode(['status' => 'success', 'message' => 'Course berhasil diperbarui']);
+                $message = 'Course berhasil diperbarui';
             } else {
                 $stmt = $pdo->prepare("INSERT INTO courses (title, slug, description, icon, is_published) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$title, $slug, $description, $icon, $is_published]);
-                echo json_encode(['status' => 'success', 'message' => 'Course baru berhasil ditambahkan']);
+                $id = (int)$pdo->lastInsertId();
+                $message = 'Course baru berhasil ditambahkan';
             }
+
+            // --- Proses cover ---
+            $base     = cover_basename($title);
+            $newCover = $oldCover;
+
+            if ($hasUpload) {
+                $newCover = cover_unique_name($pdo, $base, $ext, $id);
+                if (!move_uploaded_file($_FILES['cover_image']['tmp_name'], COVER_DIR . $newCover)) {
+                    throw new RuntimeException('Gagal menyimpan file gambar ke assets/img.');
+                }
+            } elseif ($oldCover && !cover_used_by_others($pdo, $oldCover, $id)) {
+                // Tanpa upload baru: kalau judul berubah, nama file ikut disesuaikan
+                $oldExt = strtolower(pathinfo($oldCover, PATHINFO_EXTENSION));
+                $target = cover_unique_name($pdo, $base, $oldExt, $id);
+                if ($target !== $oldCover
+                    && is_file(COVER_DIR . $oldCover)
+                    && !file_exists(COVER_DIR . $target)
+                    && rename(COVER_DIR . $oldCover, COVER_DIR . $target)) {
+                    $newCover = $target;
+                }
+            }
+
+            if ($newCover !== $oldCover) {
+                $u = $pdo->prepare("UPDATE courses SET cover_image = ? WHERE id = ?");
+                $u->execute([$newCover, $id]);
+                cover_delete($pdo, $oldCover, $id); // hapus file lama yang sudah tidak terpakai
+            }
+
+            echo json_encode(['status' => 'success', 'message' => $message]);
             exit;
         }
 
         if ($action === 'delete') {
-            $id = $_POST['id'];
+            $id = (int)$_POST['id'];
+            $q = $pdo->prepare("SELECT cover_image FROM courses WHERE id = ?");
+            $q->execute([$id]);
+            $oldCover = $q->fetchColumn() ?: null;
+
             $stmt = $pdo->prepare("DELETE FROM courses WHERE id = ?");
             $stmt->execute([$id]);
+            cover_delete($pdo, $oldCover, $id);
             echo json_encode(['status' => 'success', 'message' => 'Course berhasil dihapus']);
             exit;
         }
@@ -44,6 +146,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo json_encode(['status' => 'success', 'data' => $stmt->fetch()]);
             exit;
         }
+    } catch (\RuntimeException $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
     } catch (\PDOException $e) {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
@@ -198,7 +303,7 @@ require_once __DIR__ . '/views/layout_header.php';
 
 <!-- Modal Form -->
 <div id="courseModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl transform transition-all scale-95 opacity-0 duration-200" id="modalContainer">
+    <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl transform transition-all scale-95 opacity-0 duration-200" id="modalContainer">
         <div class="flex items-center justify-between mb-5">
             <h3 class="text-base font-bold text-slate-900" id="modalTitle">Tambah Course</h3>
             <button onclick="closeModal()" class="w-7 h-7 text-slate-400 hover:text-slate-600 flex items-center justify-center rounded-lg"><i class='bx bx-x text-xl'></i></button>
@@ -206,6 +311,24 @@ require_once __DIR__ . '/views/layout_header.php';
         <form id="courseForm" onsubmit="saveData(event)" class="space-y-4">
             <input type="hidden" name="action" value="save">
             <input type="hidden" name="id" id="course_id">
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Cover Course</label>
+                <div class="flex items-start gap-3">
+                    <div class="w-48 h-28 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <i id="coverPlaceholder" class='bx bx-image text-2xl text-slate-300'></i>
+                        <img id="coverPreview" src="" alt="Preview cover" class="hidden w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <input type="file" name="cover_image" id="cover_image" accept="image/png,image/jpeg,image/webp" class="hidden">
+                        <button type="button" onclick="document.getElementById('cover_image').click()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold rounded-lg transition-all">
+                            <i class='bx bx-upload text-sm'></i> Upload Gambar
+                        </button>
+                        <p class="text-[11px] text-slate-400 mt-1.5">JPG, PNG, atau WEBP. Maks 2 MB.</p>
+                        <p id="coverFilename" class="text-[11px] font-mono text-slate-500 mt-0.5 truncate"></p>
+                    </div>
+                </div>
+            </div>
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Judul Course</label>
@@ -297,8 +420,75 @@ function generateSlug(text) {
 }
 
 // Otomatis isi slug saat user mengetik judul
-    document.getElementById('title').addEventListener('input', function() {
+document.getElementById('title').addEventListener('input', function() {
     document.getElementById('slug').value = generateSlug(this.value);
+    updateCoverFilename();
+});
+
+// --- COVER IMAGE ---
+const COVER_BASE       = '../assets/img/';
+const COVER_MAX_SIZE   = 2 * 1024 * 1024;
+const COVER_EXT        = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const coverInput       = document.getElementById('cover_image');
+const coverPreview     = document.getElementById('coverPreview');
+const coverPlaceholder = document.getElementById('coverPlaceholder');
+const coverFilename    = document.getElementById('coverFilename');
+let savedCover = '';      // nama file cover yang tersimpan di DB (mode edit)
+let blobUrl    = null;    // object URL preview file yang baru dipilih
+
+// "Pengantar Android" -> "pengantar_android" (sama dengan logika di PHP)
+function coverBasename(text) {
+    return text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 100) || 'course';
+}
+
+function showCoverPreview(src) {
+    if (src) {
+        coverPreview.src = src;
+        coverPreview.classList.remove('hidden');
+        coverPlaceholder.classList.add('hidden');
+    } else {
+        coverPreview.removeAttribute('src');
+        coverPreview.classList.add('hidden');
+        coverPlaceholder.classList.remove('hidden');
+    }
+}
+
+function updateCoverFilename() {
+    const file  = coverInput.files[0];
+    const title = document.getElementById('title').value;
+    let ext = '';
+    if (file) ext = COVER_EXT[file.type] || '';
+    else if (savedCover) ext = savedCover.split('.').pop();
+    coverFilename.textContent = (ext && title.trim()) ? 'Disimpan sebagai: ' + coverBasename(title) + '.' + ext : '';
+}
+
+function resetCover(saved) {
+    coverInput.value = '';
+    if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+    savedCover = saved || '';
+    showCoverPreview(savedCover ? COVER_BASE + encodeURIComponent(savedCover) + '?t=' + Date.now() : '');
+    updateCoverFilename();
+}
+
+coverInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) { resetCover(savedCover); return; }
+
+    if (!COVER_EXT[file.type]) {
+        showToast('Format gambar harus JPG, PNG, atau WEBP.', 'error');
+        resetCover(savedCover);
+        return;
+    }
+    if (file.size > COVER_MAX_SIZE) {
+        showToast('Ukuran gambar maksimal 2 MB.', 'error');
+        resetCover(savedCover);
+        return;
+    }
+
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = URL.createObjectURL(file);
+    showCoverPreview(blobUrl);   // preview sebelum submit
+    updateCoverFilename();
 });
 
 const modal = document.getElementById('courseModal');
@@ -307,6 +497,7 @@ const modalContainer = document.getElementById('modalContainer');
 function openModal() {
     document.getElementById('courseForm').reset();
     document.getElementById('course_id').value = '';
+    resetCover('');
     document.getElementById('modalTitle').innerText = 'Tambah Course Baru';
     modal.classList.remove('hidden');
     setTimeout(() => {
@@ -335,7 +526,8 @@ function saveData(e) {
         } else {
             showToast(res.message, 'error');
         }
-    });
+    })
+    .catch(() => showToast('Gagal menyimpan. Periksa ukuran file (batas upload_max_filesize / post_max_size di php.ini).', 'error'));
 }
 
 function editData(id) {
@@ -355,6 +547,7 @@ function editData(id) {
             document.getElementById('description').value = d.description;
             document.getElementById('is_published').checked = d.is_published == 1;
             document.getElementById('modalTitle').innerText = 'Edit Course';
+            resetCover(d.cover_image);
 
             modal.classList.remove('hidden');
             setTimeout(() => {

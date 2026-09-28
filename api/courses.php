@@ -22,7 +22,16 @@ try {
         SELECT
             c.id, c.title, c.slug, c.description, c.icon, c.cover_image, c.created_at,
             COUNT(DISTINCT m.id) AS module_count,
-            COUNT(DISTINCT t.id) AS topic_count
+            COUNT(DISTINCT t.id) AS topic_count,
+            COALESCE(SUM(t.estimated_read_time), 0) AS duration_minutes,
+            (
+                SELECT t2.slug
+                FROM topics t2
+                INNER JOIN modules m2 ON m2.id = t2.module_id
+                WHERE m2.course_id = c.id
+                ORDER BY m2.order_position ASC, t2.order_position ASC, t2.id ASC
+                LIMIT 1
+            ) AS first_topic_slug
         FROM courses c
         LEFT JOIN modules m ON m.course_id = c.id
         LEFT JOIN topics t ON t.module_id = m.id
@@ -38,13 +47,11 @@ try {
         $course['id']           = (int) $course['id'];
         $course['module_count'] = (int) $course['module_count'];
         $course['topic_count']  = (int) $course['topic_count'];
+        $course['duration_minutes'] = (int) $course['duration_minutes'];
+        $course['first_topic_slug'] = $course['first_topic_slug'] !== null ? (string) $course['first_topic_slug'] : null;
 
-        // Ringkas deskripsi panjang agar rapi ditampilkan sebagai card.
-        $desc = trim((string) $course['description']);
-        if (mb_strlen($desc) > 180) {
-            $desc = mb_substr($desc, 0, 180) . '…';
-        }
-        $course['description'] = $desc;
+        // Kembalikan deskripsi penuh. Card akan menangani truncation; modal memakai versi penuh.
+        $course['description'] = trim((string) $course['description']);
 
         $course['progress_percent']  = 0;
         $course['completed_topics']  = 0;
