@@ -2,11 +2,9 @@
 require_once __DIR__ . '/../auth.php';
 check_admin_login();
 
-// Mengambil path URL dan membersihkannya dari slash/query string
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $current_page = trim(basename($uri), '/');
 
-// Jika halaman utama/root, atur default (opsional)
 if (empty($current_page)) {
     $current_page = 'dashboard'; 
 }
@@ -16,7 +14,7 @@ if (empty($current_page)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Course Admin Panel</title>
+    <title>Digistack - Digital Adaftive Learning Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/aguphia-icon.png">
     <link rel="icon" type="image/png" sizes="16x16" href="../assets/img/aguphia-icon.png">
@@ -27,15 +25,14 @@ if (empty($current_page)) {
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .btn-disabled {
-            pointer-events: none; /* Mematikan interaksi klik */
-            cursor: default;       /* Mengubah kursor jadi panah biasa */
-            opacity: 1;          /* Efek visual disabled/pudar */
+            pointer-events: none;
+            cursor: default;
+            opacity: 1;
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-20 md:pb-0">
 
-    <!-- DESKTOP SIDEBAR (Tampil di md: ke atas) -->
     <aside class="hidden md:flex fixed top-0 left-0 z-40 w-20 h-screen bg-white border-r border-white flex-col justify-between py-5 px-2.5">
         <div class="flex flex-col items-center">
             <a href="#" class="w-11 h-11 rounded-xl flex items-center justify-center text-white text-2xl transition-all mb-6 btn-disabled">
@@ -78,7 +75,6 @@ if (empty($current_page)) {
         </div>
     </aside>
 
-    <!-- MOBILE & TABLET BOTTOM NAVIGATION (Tampil di bawah md) -->
     <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-800 px-3 py-2 flex items-center justify-around">
         <a href="./dashboard" class="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl <?= $current_page === 'dashboard' ? 'text-indigo-400 font-semibold' : 'text-slate-400' ?>">
             <i class='bx bx-grid-alt text-xl'></i>
@@ -106,5 +102,4 @@ if (empty($current_page)) {
         </a>
     </div>
 
-    <!-- MAIN CONTENT (Margin & width disesuaikan presisi di desktop) -->
     <main class="flex-1 min-w-0 md:ml-20 md:w-[calc(100%-5rem)] p-4 sm:p-6 md:p-8">
