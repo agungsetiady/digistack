@@ -1,8 +1,20 @@
 <?php
+// 1. Tangkap Slug / ID Course
 $courseSlug = isset($_GET['slug']) ? trim((string) $_GET['slug']) : '';
 $courseId   = isset($_GET['id']) ? (int) $_GET['id'] : 0;
-$initialTopicId = isset($_GET['topic']) ? (int) $_GET['topic'] : 0;
 
+// 2. Tangkap Topic (Bisa berupa Angka ID atau String Slug)
+$rawTopic = '';
+if (isset($_GET['topic_slug']) && $_GET['topic_slug'] !== '') {
+    $rawTopic = trim((string) $_GET['topic_slug']);
+} elseif (isset($_GET['topic']) && $_GET['topic'] !== '') {
+    $rawTopic = trim((string) $_GET['topic']);
+}
+
+// 3. Tentukan nilai parameter topic (kirim string slug atau integer ID)
+$initialTopic = is_numeric($rawTopic) ? (int)$rawTopic : $rawTopic;
+
+// 4. Validasi keberadaan referensi Course
 $hasCourseRef = ($courseSlug !== '' || $courseId > 0);
 
 $base = '/digistack';
@@ -28,7 +40,7 @@ $base = '/digistack';
   #sidebar.sidebar-collapsed #module-accordion-container svg {
     display: none !important;
   }
-</style>
+  </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col h-screen overflow-hidden">
 
@@ -47,7 +59,7 @@ $base = '/digistack';
   <div id="course-app"
        data-course-slug="<?= htmlspecialchars($courseSlug, ENT_QUOTES) ?>"
        data-course-id="<?= (int) $courseId ?>"
-       data-initial-topic="<?= (int) $initialTopicId ?>"
+       data-initial-topic="<?= htmlspecialchars((string)$initialTopic, ENT_QUOTES) ?>"
        class="flex flex-col h-full">
 
     <!-- Top Navigation Header -->
@@ -146,44 +158,46 @@ $base = '/digistack';
 
             </div>
 
-            <!-- Action Footer -->
-            <div
-              class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-8"
-            >
-
-              <button
-                id="btn-prev-topic"
-                onclick="navTopic('prev')"
-                class="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"
-                disabled
-              >
-                ← Topik Sebelumnya
-              </button>
-
-              <button
-                id="btn-complete-topic"
-                onclick="toggleCompleteTopic()"
-                class="w-full sm:w-auto px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl text-sm transition flex items-center justify-center gap-2"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            <!-- Action Footer Navigasi -->
+            <div class="pt-6 border-t border-gray-200 dark:border-gray-700 mt-8 mb-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                
+                <!-- Tombol Prev (Topik Sebelumnya) -->
+                <button
+                  id="btn-prev-topic"
+                  onclick="navTopic('prev')"
+                  class="flex items-center justify-start gap-3 px-4 py-3 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/80 rounded-xl text-left transition group disabled:opacity-30 disabled:pointer-events-none w-full"
+                  disabled
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                  <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                  </svg>
+                  <div class="min-w-0 flex-1">
+                    <span class="block text-[10px] font-bold tracking-wider uppercase text-gray-400 dark:text-gray-500 mb-0.5">Materi Sebelumnya</span>
+                    <span id="lbl-prev-title" class="block text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                      -
+                    </span>
+                  </div>
+                </button>
 
-                <span id="btn-complete-label">
-                  Selesai &amp; Lanjut
-                </span>
-              </button>
+                <!-- Tombol Next / Selesai (Topik Selanjutnya) -->
+                <button
+                  id="btn-complete-topic"
+                  onclick="toggleCompleteTopic()"
+                  class="flex items-center justify-between gap-3 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition group w-full"
+                >
+                  <div class="min-w-0 flex-1 text-right">
+                    <span id="lbl-next-subtitle" class="block text-[10px] font-bold tracking-wider uppercase text-blue-200 mb-0.5">Materi Selanjutnya</span>
+                    <span id="lbl-next-title" class="block text-xs sm:text-sm font-bold text-white truncate">
+                      Selesai &amp; Lanjut
+                    </span>
+                  </div>
+                  <svg id="icon-next-topic" class="w-5 h-5 text-blue-200 group-hover:text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </button>
 
+              </div>
             </div>
 
           </div>

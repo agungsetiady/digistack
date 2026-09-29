@@ -133,7 +133,9 @@ async function loadCourse() {
   const rawSlug = app.dataset.courseSlug || '';
   const slug = rawSlug.split('/').pop();
   const id = parseInt(app.dataset.courseId, 10) || 0;
-  const initialTopic = parseInt(app.dataset.initialTopic, 10) || 0;
+  
+  // Membaca initialTopic baik berupa Integer (ID) maupun String (Slug)
+  const initialTopicRef = (app.dataset.initialTopic || '').trim();
 
   const query = slug ? `slug=${encodeURIComponent(slug)}` : `id=${id}`;
 
@@ -151,9 +153,17 @@ async function loadCourse() {
     renderCourseSidebar();
 
     let startTopicId = null;
-    if (initialTopic && flatTopics.some(t => t.id === initialTopic)) {
-      startTopicId = initialTopic;
-    } else {
+
+    // Cari topik acuan berdasarkan ID atau Slug
+    if (initialTopicRef) {
+      const matched = flatTopics.find(t => 
+        String(t.id) === initialTopicRef || (t.slug && t.slug === initialTopicRef)
+      );
+      if (matched) startTopicId = matched.id;
+    }
+
+    // Jika tidak ditemukan dari URL, arahkan ke topik belum selesai pertama / topik pertama
+    if (!startTopicId) {
       const firstIncomplete = flatTopics.find(t => !t.completed);
       startTopicId = firstIncomplete ? firstIncomplete.id : (flatTopics[0]?.id ?? null);
     }
@@ -223,8 +233,8 @@ function renderCourseSidebar() {
 
     moduleEl.innerHTML = `
       <div class="border-b border-gray-100 dark:border-gray-800">
-        <!-- Background Header Modul dibuat nuansa Lavender (Purple/Indigo) -->
-        <button onclick="toggleModule(${module.id})" class="w-full px-4 py-3 flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-left font-bold text-xs text-slate-800 dark:text-slate-200 transition">          <span class="pr-2 break-words leading-tight">${escapeHtml(module.title)}</span>
+        <button onclick="toggleModule(${module.id})" class="w-full px-4 py-3 flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-left font-bold text-xs text-slate-800 dark:text-slate-200 transition">
+          <span class="pr-2 break-words leading-tight">${escapeHtml(module.title)}</span>
           <svg id="arrow-${module.id}" class="w-4 h-4 text-purple-700 dark:text-purple-300 flex-shrink-0 transform transition-transform duration-200 ${isActiveModule ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div id="module-body-${module.id}" class="${isActiveModule ? '' : 'hidden'} py-1 bg-white dark:bg-gray-900">
@@ -260,9 +270,11 @@ function navigateToTopic(topicId) {
 }
 
 // 5. Muat & render konten satu topik dari API
-async function loadTopic(topicId) {
+async function loadTopic(topicIdOrSlug) {
   try {
-    const response = await apiFetch(`/topic-content.php?id=${topicId}`);
+    // 1. Panggil API dengan ID atau Slug
+    const queryParam = isNaN(topicIdOrSlug) ? `slug=${encodeURIComponent(topicIdOrSlug)}` : `id=${topicIdOrSlug}`;
+    const response = await apiFetch(`/topic-content.php?${queryParam}`);
     const result = await response.json();
 
     if (!response.ok || result.status !== 'success') {
@@ -273,8 +285,8 @@ async function loadTopic(topicId) {
     const topic = result.data;
     currentTopicId = topic.id;
 
-    // Sinkronkan status completed ke data lokal
-    const localTopic = flatTopics.find(t => t.id === topic.id);
+    // Sinkronkan status completed ke data lokal (cari berdasarkan ID atau Slug)
+    const localTopic = flatTopics.find(t => t.id === topic.id || (t.slug && t.slug === topic.slug));
     if (localTopic) localTopic.completed = topic.completed;
 
     // Render breadcrumb & header
@@ -310,12 +322,12 @@ async function loadTopic(topicId) {
     updateNavButtons();
     renderCourseSidebar();
 
-    // KODE BARU:
-    // Pastikan slug murni tanpa prefix path/URL
-    const cleanSlug = String(topic.course_slug || '').split('/').pop();
+    // --- REWRITE URL BROWSER RINGKAS: /digistack/slug-course/slug-topic ---
+    const cleanCourseSlug = String(topic.course_slug || courseData?.slug || '').split('/').pop();
+    const topicSlug = topic.slug || localTopic?.slug;
+    const topicSegment = topicSlug ? topicSlug : topic.id;
     
-    // Gunakan root-relative path aplikasi
-    const newUrl = `/digistack/course/${encodeURIComponent(cleanSlug)}/topic/${topic.id}`;
+    const newUrl = `/digistack/${encodeURIComponent(cleanCourseSlug)}/${encodeURIComponent(topicSegment)}`;
 
     window.history.replaceState({}, '', newUrl);
 
@@ -337,16 +349,50 @@ function updateCompleteButton(isCompleted) {
 function updateNavButtons() {
   const idx = flatTopics.findIndex(t => t.id === currentTopicId);
   const prevBtn = document.getElementById('btn-prev-topic');
-  const nextExists = idx >= 0 && idx < flatTopics.length - 1;
-
-  if (prevBtn) prevBtn.disabled = idx <= 0;
-
+  const lblPrevTitle = document.getElementById('lbl-prev-title');
+  
   const completeBtn = document.getElementById('btn-complete-topic');
-  const label = document.getElementById('btn-complete-label');
-  if (completeBtn && label && !nextExists) {
-    // Topik terakhir di course -- ganti label tombol saat sudah selesai
-    const topic = flatTopics[idx];
-    if (topic?.completed) label.innerHTML = 'Course Selesai &#127881;';
+  const lblNextTitle = document.getElementById('lbl-next-title');
+  const lblNextSubtitle = document.getElementById('lbl-next-subtitle');
+  const iconNext = document.getElementById('icon-next-topic');
+
+  if (idx < 0) return;
+
+  // ------------------------------------------------------------------
+  // 1. Pengaturan Tombol Prev (Topik Sebelumnya)
+  // ------------------------------------------------------------------
+  if (idx > 0) {
+    const prevTopic = flatTopics[idx - 1];
+    if (prevBtn) prevBtn.disabled = false;
+    if (lblPrevTitle) lblPrevTitle.textContent = prevTopic.title;
+  } else {
+    // Berada di topik pertama
+    if (prevBtn) prevBtn.disabled = true;
+    if (lblPrevTitle) lblPrevTitle.textContent = 'Awal Materi';
+  }
+
+  // ------------------------------------------------------------------
+  // 2. Pengaturan Tombol Next / Complete (Topik Selanjutnya)
+  // ------------------------------------------------------------------
+  const nextExists = idx < flatTopics.length - 1;
+
+  if (nextExists) {
+    const nextTopic = flatTopics[idx + 1];
+    if (lblNextSubtitle) lblNextSubtitle.textContent = 'Materi Selanjutnya';
+    if (lblNextTitle) lblNextTitle.textContent = nextTopic.title;
+    
+    // Tampilkan icon panah kanan
+    if (iconNext) iconNext.classList.remove('hidden');
+  } else {
+    // Berada di topik terakhir course
+    const currentTopic = flatTopics[idx];
+    if (lblNextSubtitle) lblNextSubtitle.textContent = 'Selesai Course';
+    
+    if (currentTopic?.completed) {
+      if (lblNextTitle) lblNextTitle.innerHTML = 'Course Selesai &#127881;';
+    } else {
+      if (lblNextTitle) lblNextTitle.textContent = 'Tandai Selesai';
+    }
   }
 }
 

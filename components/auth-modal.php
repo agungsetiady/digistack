@@ -1,5 +1,5 @@
 <!-- components/auth-modal.php -->
-<div id="auth-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md hidden items-center justify-center p-4 z-50 opacity-0 transition-opacity duration-300">
+<div id="auth-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md hidden items-center justify-center p-4 z-[100] opacity-0 transition-opacity duration-300">
   
   <!-- Modal Card (Glassmorphism Concept) -->
   <div id="auth-modal-card" class="bg-white/90 dark:bg-slate-900/90 border border-white/40 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl w-full max-w-md p-7 relative overflow-hidden transition-all duration-300 transform scale-95 translate-y-2">

@@ -1,27 +1,46 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
+    RewriteBase /digistack/
+
     RewriteCond %{HTTP:Authorization} ^(.+)$
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
 
-    # Routing API Auth OTP
+    # 1. Routing API Auth OTP
     RewriteRule ^api/auth/send-otp/?$ api/auth/send-otp.php [QSA,L]
     RewriteRule ^api/auth/verify-otp/?$ api/auth/verify-otp.php [QSA,L]
 
-    # Routing API OAuth Google
+    # 2. Routing API OAuth Google
     RewriteRule ^api/auth/google/redirect/?$ api/auth/google-redirect.php [QSA,L]
     RewriteRule ^api/auth/google/callback/?$ api/auth/google-callback.php [QSA,L]
 
-    # Routing API OAuth GitHub
+    # 3. Routing API OAuth GitHub
     RewriteRule ^api/auth/github/redirect/?$ api/auth/github-redirect.php [QSA,L]
     RewriteRule ^api/auth/github/callback/?$ api/auth/github-callback.php [QSA,L]
 
-    # Routing Halaman Course dengan Topic (Clean URL)
-    # Format: /course/slug-course/topic/37  ATAU  /course/slug-course/37
-    RewriteRule ^course/([a-zA-Z0-9-]+)/topic/([0-9]+)/?$ course.php?slug=$1&topic=$2 [QSA,L]
-    RewriteRule ^course/([a-zA-Z0-9-]+)/([0-9]+)/?$ course.php?slug=$1&topic=$2 [QSA,L]
-
-    # Routing Halaman Course Standard (tanpa topic)
+    # 4. Backward Compatibility: Routing Halaman Course Lama (dengan prefix /course/)
+    RewriteRule ^course/([a-zA-Z0-9-]+)/topic/([a-zA-Z0-9-]+)/?$ course.php?slug=$1&topic_slug=$2 [QSA,L]
+    RewriteRule ^course/([a-zA-Z0-9-]+)/([a-zA-Z0-9-]+)/?$ course.php?slug=$1&topic_slug=$2 [QSA,L]
     RewriteRule ^course/([0-9]+)/?$ course.php?id=$1 [QSA,L]
     RewriteRule ^course/([a-zA-Z0-9-]+)/?$ course.php?slug=$1 [QSA,L]
+
+    # -------------------------------------------------------------
+    # 5. Routing Baru Singkat (Tanpa Prefix /course/)
+    # Format: /slug-course/slug-topic ATAU /slug-course
+    # -------------------------------------------------------------
+
+    # Pengecekan Keamanan: Abaikan file & folder fisik asli (CSS, JS, Gambar, API, dll)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Pengecekan Tambahan: Jangan lempar jika request mengarah ke file .php yang ada di root (contoh: index.php, login.php)
+    RewriteCond %{REQUEST_URI} !\.php$ [NC]
+
+    # Routing A: /slug-course/slug-topic (Mendukung Slug maupun ID Topic)
+    RewriteRule ^([a-zA-Z0-9-]+)/([a-zA-Z0-9-]+)/?$ course.php?slug=$1&topic_slug=$2 [QSA,L]
+
+    # Routing B: /slug-course
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !\.php$ [NC]
+    RewriteRule ^([a-zA-Z0-9-]+)/?$ course.php?slug=$1 [QSA,L]
 </IfModule>

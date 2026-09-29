@@ -1,6 +1,6 @@
 <?php
 // api/topic-content.php
-// GET ?id=123
+// GET ?id=123 atau GET ?slug=nama-slug-topik
 // Mengembalikan konten Markdown lengkap 1 topik. WAJIB login (konten materi ter-proteksi).
 
 header("Access-Control-Allow-Origin: *");
@@ -20,18 +20,25 @@ require_once __DIR__ . '/middleware.php';
 $user   = require_auth();
 $userId = $user['sub'];
 
-$topicId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+// Tangkap parameter id atau slug
+$topicParam = $_GET['id'] ?? $_GET['slug'] ?? '';
+$topicParam = trim((string) $topicParam);
 
-if ($topicId <= 0) {
+if ($topicParam === '') {
     http_response_code(400);
-    echo json_encode(["status" => "fail", "message" => "Parameter id topik wajib diisi."]);
+    echo json_encode(["status" => "fail", "message" => "Parameter ID atau Slug topik wajib diisi."]);
     exit;
 }
 
+// Tentukan pencarian berdasarkan ID (jika numerik) atau Slug
+$isNumeric = is_numeric($topicParam);
+
 try {
+    $whereClause = $isNumeric ? "t.id = :param" : "t.slug = :param";
+
     $stmt = $pdo->prepare("
         SELECT
-            t.id, t.title, t.estimated_read_time, t.order_position,
+            t.id, t.title, t.slug, t.estimated_read_time, t.order_position,
             m.id AS module_id, m.title AS module_title,
             c.id AS course_id, c.title AS course_title, c.slug AS course_slug,
             tc.content_markdown, tc.summary_tldr
@@ -39,10 +46,11 @@ try {
         INNER JOIN modules m ON m.id = t.module_id
         INNER JOIN courses c ON c.id = m.course_id
         LEFT JOIN topic_contents tc ON tc.topic_id = t.id
-        WHERE t.id = :id AND c.is_published = 1
+        WHERE {$whereClause} AND c.is_published = 1
         LIMIT 1
     ");
-    $stmt->execute([':id' => $topicId]);
+    
+    $stmt->execute([':param' => $topicParam]);
     $topic = $stmt->fetch();
 
     if (!$topic) {
@@ -51,6 +59,7 @@ try {
         exit;
     }
 
+    $topicId  = (int) $topic['id'];
     $courseId = (int) $topic['course_id'];
 
     // Pastikan user terdaftar di course ini (defensive auto-enroll)
@@ -69,8 +78,9 @@ try {
     echo json_encode([
         "status" => "success",
         "data"   => [
-            "id"                  => (int) $topic['id'],
+            "id"                  => $topicId,
             "title"               => $topic['title'],
+            "slug"                => $topic['slug'] ?? '', // Tambahkan slug topik di response JSON
             "estimated_read_time" => (int) $topic['estimated_read_time'],
             "module_id"           => (int) $topic['module_id'],
             "module_title"        => $topic['module_title'],

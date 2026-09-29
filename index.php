@@ -62,10 +62,21 @@ $base = '/digistack';
     html.light-mode .bg-white\/15 { background-color: rgba(255,255,255,.96) !important; }
     html.light-mode footer { background: rgba(255,255,255,.92) !important; border-color: #e2e8f0 !important; }
     html.light-mode .light-grid { opacity: .45; }
-    #course-detail-modal { transition: opacity .2s ease; }
-    #course-detail-panel { transition: transform .2s ease, opacity .2s ease; }
+    #course-detail-modal {
+      transition: opacity .2s ease;
+    }
+
+    #course-detail-panel {
+      transition: transform .2s ease, opacity .2s ease;
+    }
+
     @media (max-width: 639px) {
-      #course-detail-panel { max-height: 88vh; }
+      #course-detail-panel {
+        width: calc(100% - 24px);
+        max-height: 90vh;
+        margin: 12px;
+        border-radius: 16px;
+      }
     }
   </style>
   <script>
@@ -340,30 +351,53 @@ $base = '/digistack';
     <div id="catalog-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
   </section>
 
+  <!-- Course Detail Modal -->
+  <div id="course-detail-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md hidden flex items-center justify-center p-2 z-[90] opacity-0 transition-opacity duration-300">
+    <div id="course-detail-backdrop" class="absolute inset-0"></div>
 
-  <div id="course-detail-modal" class="hidden fixed inset-0 z-[70] opacity-0 bg-slate-950/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div id="course-detail-panel" class="w-full sm:max-w-2xl max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-700/80 shadow-2xl translate-y-full sm:scale-95">
-      <div class="sticky top-0 z-10 flex items-center justify-between gap-4 px-5 py-4 bg-slate-900/95 backdrop-blur border-b border-slate-800">
-        <span class="text-xs font-bold uppercase tracking-widest text-blue-400">Detail Course</span>
-        <button type="button" onclick="closeCourseModal()" class="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors" aria-label="Tutup detail course">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+    <!-- Modal Card (Glassmorphism Concept) -->
+    <div id="course-detail-panel" class="bg-white/90 dark:bg-slate-900/90 border border-white/40 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl w-full max-w-2xl relative overflow-hidden transition-all duration-300 transform scale-95 translate-y-2 flex flex-col max-h-[90vh] z-10">
+      
+      <!-- Ambient Inner Light Effect -->
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none animate-pulse"></div>
+      <div class="absolute -bottom-24 -left-24 w-40 h-40 bg-indigo-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+      <!-- Close Button -->
+      <button id="course-detail-close" type="button" class="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition z-20" aria-label="Tutup detail course">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+
+      <!-- Header -->
+      <div class="p-6 sm:p-7 pb-2 border-b border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4 pr-14 relative z-10">
+        <div class="min-w-0">
+          <h2 id="course-detail-title" class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug"></h2>
+        </div>
       </div>
 
-      <div class="p-5 sm:p-7">
-        <div class="hidden mb-6 rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/40 aspect-[2/1]">
-          <img id="course-modal-cover" src="" alt="" class="w-full h-full object-contain">
+      <!-- Scrollable Content Body -->
+      <div class="overflow-y-auto p-6 sm:p-7 space-y-6 relative z-10 flex-1">
+        <!-- Cover Image -->
+        <div id="course-detail-cover"></div>
+
+        <!-- Meta Info -->
+        <div id="course-detail-meta" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100/70 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/50"></div>
+
+        <!-- Description Section -->
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">Tentang Course</h3>
+          <p id="course-detail-description" class="text-sm leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-line"></p>
         </div>
-        <h2 id="course-modal-title" class="text-2xl sm:text-3xl font-black text-white tracking-tight"></h2>
-        <p id="course-modal-meta" class="mt-3 text-xs sm:text-sm font-semibold text-blue-400"></p>
-        <div class="mt-6">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-2">Deskripsi Course</h3>
-          <p id="course-modal-description" class="text-sm sm:text-base leading-7 text-slate-300 whitespace-pre-line"></p>
-        </div>
-        <button id="course-modal-start" type="button" class="w-full mt-7 px-5 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/20 transition-all">
+      </div>
+
+      <!-- Sticky Footer CTA -->
+      <div class="p-5 sm:p-6 border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md relative z-10">
+        <button id="course-detail-start" type="button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 text-sm active:scale-[0.99]">
           Mulai Belajar
         </button>
       </div>
+
     </div>
   </div>
 

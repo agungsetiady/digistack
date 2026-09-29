@@ -39,21 +39,33 @@ try {
     }
 
     // ------------------------------------------------------------------
-    // 2. Semua course published + progres milik user (dipakai berkali-kali di bawah)
+    // 2. Semua course published + progres milik user
+    // (FIX: Lengkapi GROUP BY agar kompatibel dengan MySQL strict mode)
+    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // 2. Semua course published + progres milik user
     // ------------------------------------------------------------------
     $courseStmt = $pdo->prepare("
         SELECT
-            c.id, c.title, c.slug, c.description, c.icon, c.cover_image,
+            c.id, c.title, c.slug, c.description, c.icon, c.cover_image, c.created_at,
             COUNT(DISTINCT m.id)  AS module_count,
             COUNT(DISTINCT t.id)  AS topic_count,
             ce.id                 AS enrollment_id,
-            ce.enrolled_at        AS enrolled_at
+            ce.enrolled_at        AS enrolled_at,
+            (
+                SELECT t_sub.slug 
+                FROM topics t_sub 
+                INNER JOIN modules m_sub ON m_sub.id = t_sub.module_id 
+                WHERE m_sub.course_id = c.id 
+                ORDER BY m_sub.order_position ASC, t_sub.order_position ASC, t_sub.id ASC 
+                LIMIT 1
+            ) AS first_topic_slug
         FROM courses c
         LEFT JOIN modules m ON m.course_id = c.id
         LEFT JOIN topics t  ON t.module_id = m.id
         LEFT JOIN course_enrollments ce ON ce.course_id = c.id AND ce.user_id = :uid
         WHERE c.is_published = 1
-        GROUP BY c.id
+        GROUP BY c.id, c.title, c.slug, c.description, c.icon, c.cover_image, c.created_at, ce.id, ce.enrolled_at
         ORDER BY c.created_at DESC
     ");
     $courseStmt->execute([':uid' => $userId]);
@@ -92,19 +104,20 @@ try {
         $completed    = count($completedIds);
 
         $courses[$cid] = [
-            'id'                => $cid,
-            'title'             => $c['title'],
-            'slug'              => $c['slug'],
-            'description'       => $c['description'],
-            'icon'              => $c['icon'],
-            'cover_image'       => $c['cover_image'],
-            'module_count'      => (int) $c['module_count'],
-            'topic_count'       => $topicCount,
-            'is_enrolled'       => $c['enrollment_id'] !== null,
-            'enrolled_at'       => $c['enrolled_at'],
-            'completed_topics'  => $completed,
-            'progress_percent'  => $topicCount > 0 ? (int) round(($completed / $topicCount) * 100) : 0,
-            'last_activity'     => $lastActivityByCourse[$cid] ?? null,
+            'id'                  => $cid,
+            'title'               => $c['title'],
+            'slug'                => $c['slug'],
+            'description'         => $c['description'],
+            'icon'                => $c['icon'],
+            'cover_image'         => $c['cover_image'],
+            'module_count'        => (int) $c['module_count'],
+            'first_topic_slug' => $c['first_topic_slug'],
+            'topic_count'         => $topicCount,
+            'is_enrolled'         => $c['enrollment_id'] !== null,
+            'enrolled_at'         => $c['enrolled_at'],
+            'completed_topics'    => $completed,
+            'progress_percent'    => $topicCount > 0 ? (int) round(($completed / $topicCount) * 100) : 0,
+            'last_activity'       => $lastActivityByCourse[$cid] ?? null,
             'completed_topic_ids' => $completedIds,
         ];
     }
@@ -117,13 +130,12 @@ try {
     });
 
     usort($inProgress, function ($a, $b) {
-        // Urutkan berdasarkan aktivitas terakhir (terbaru dulu), lalu waktu enroll
         $aTime = $a['last_activity'] ?? $a['enrolled_at'];
         $bTime = $b['last_activity'] ?? $b['enrolled_at'];
         return strcmp((string) $bTime, (string) $aTime);
     });
 
-    // Ambil topic selanjutnya (belum selesai, urutan paling awal) untuk tiap course in-progress
+    // Ambil topic selanjutnya (belum selesai, urutan paling awal)
     $continueLearning = [];
     foreach (array_slice($inProgress, 0, 3) as $c) {
         $nextTopicStmt = $pdo->prepare("
@@ -142,29 +154,32 @@ try {
             'id'               => $c['id'],
             'title'            => $c['title'],
             'slug'             => $c['slug'],
+            'description'      => $c['description'],
             'icon'             => $c['icon'],
+            'cover_image'      => $c['cover_image'], // FIX: Sertakan cover_image
+            'module_count'     => $c['module_count'],  // FIX: Sertakan module_count
             'progress_percent' => $c['progress_percent'],
+            'first_topic_slug' => $c['first_topic_slug'],
             'completed_topics' => $c['completed_topics'],
             'topic_count'      => $c['topic_count'],
             'next_topic'       => $nextTopic ? [
-                'id'                   => (int) $nextTopic['id'],
-                'title'                => $nextTopic['title'],
-                'slug'                 => $nextTopic['slug'],
-                'module_title'         => $nextTopic['module_title'],
-                'estimated_read_time'  => (int) $nextTopic['estimated_read_time'],
+                'id'                  => (int) $nextTopic['id'],
+                'title'               => $nextTopic['title'],
+                'slug'                => $nextTopic['slug'],
+                'module_title'        => $nextTopic['module_title'],
+                'estimated_read_time' => (int) $nextTopic['estimated_read_time'],
             ] : null,
         ];
     }
 
     // ------------------------------------------------------------------
     // 4. Rekomendasi -> course published yang belum diikuti user
-    //    (fallback: course yang sudah 100% selesai, untuk "pendalaman lanjutan")
     // ------------------------------------------------------------------
     $notEnrolled = array_values(array_filter($courses, function ($c) {
         return !$c['is_enrolled'];
     }));
     usort($notEnrolled, function ($a, $b) {
-        return $b['id'] <=> $a['id']; // course terbaru lebih dulu
+        return $b['id'] <=> $a['id'];
     });
 
     $recommended = array_map(function ($c) {
@@ -177,6 +192,8 @@ try {
             'title'        => $c['title'],
             'slug'         => $c['slug'],
             'icon'         => $c['icon'],
+            'first_topic_slug' => $c['first_topic_slug'],
+            'cover_image'  => $c['cover_image'], // FIX: Sertakan cover_image
             'description'  => $desc,
             'module_count' => $c['module_count'],
             'topic_count'  => $c['topic_count'],
@@ -223,6 +240,7 @@ try {
     $recentActivity = array_map(function ($r) {
         return [
             'topic_title'  => $r['topic_title'],
+            'topic_slug'   => $r['topic_slug'],
             'course_title' => $r['course_title'],
             'course_slug'  => $r['course_slug'],
             'completed_at' => $r['completed_at'],
@@ -247,5 +265,9 @@ try {
     ]);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Gagal mengambil data dashboard."]);
+    echo json_encode([
+        "status"  => "error", 
+        "message" => "Gagal mengambil data dashboard.",
+        "debug"   => $e->getMessage() // Memudahkan debugging jika ada masalah SQL lain
+    ]);
 }

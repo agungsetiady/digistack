@@ -1,9 +1,4 @@
 // assets/js/dashboard.js
-// Mengatur tampilan index.php agar berbeda antara guest (belum login) dan
-// member (sudah login): guest melihat landing page marketing, member melihat
-// dashboard personal (continue learning, rekomendasi, statistik, aktivitas).
-// Bergantung pada assets/js/auth.js (API_BASE_URL, getStoredUser, initials).
-
 const DASH_ICONS = {
   code: '&#128187;',
   terminal: '&#9000;&#65039;',
@@ -11,12 +6,13 @@ const DASH_ICONS = {
   default: '&#127919;',
 };
 
+// Cache lokal khusus untuk menyimpan objek course dari API Dashboard
+const dashboardCoursesMap = new Map();
+
 function dashIconFor(icon) {
   return DASH_ICONS[icon] || DASH_ICONS.default;
 }
 
-// Render cover image jika ada (field `cover_image` di tabel courses = nama file,
-// disimpan di folder assets/img/). Fallback ke kotak icon emoji jika kosong/gagal load.
 function dashCoverImageHtml(c, accentClass) {
   const fallback = `<div class="w-11 h-11 rounded-xl ${accentClass} flex items-center justify-center text-xl">${dashIconFor(c.icon)}</div>`;
   if (!c.cover_image) return fallback;
@@ -66,9 +62,6 @@ function greetingByHour() {
   return 'Selamat malam';
 }
 
-// ---------------------------------------------------------------------
-// Toggle utama: tampilkan guest-view ATAU member-view
-// ---------------------------------------------------------------------
 function initHomeView() {
   const user = getStoredUser();
   const guestView  = document.getElementById('guest-view');
@@ -177,13 +170,14 @@ function renderContinueLearning(courses) {
   grid.classList.remove('hidden');
 
   grid.innerHTML = courses.map((c) => {
+    // Simpan data objek course ke cache
+    dashboardCoursesMap.set(c.slug, c);
+
     const next = c.next_topic;
-    const href = next
-      ? `course.php?slug=${encodeURIComponent(c.slug)}&topic=${next.id}`
-      : `course.php?slug=${encodeURIComponent(c.slug)}`;
+    const targetTopicParam = next ? (next.slug || next.id) : '';
 
     return `
-      <a href="${href}" class="group flex flex-col p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800/80 hover:border-blue-500/40 transition-all duration-300 hover:-translate-y-1">
+      <div onclick="triggerCourseModal('${dashEscape(c.slug)}', '${dashEscape(targetTopicParam)}')" class="cursor-pointer group flex flex-col p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800/80 hover:border-blue-500/40 transition-all duration-300 hover:-translate-y-1">
         <div class="flex items-center justify-between mb-4">
           ${dashCoverImageHtml(c, 'bg-blue-500/10 border border-blue-500/20')}
           <span class="text-xs font-bold text-blue-400">${c.progress_percent}%</span>
@@ -201,7 +195,7 @@ function renderContinueLearning(courses) {
             <p class="text-sm text-slate-200 font-medium line-clamp-1 group-hover:text-blue-400 transition-colors">${dashEscape(next.title)}</p>
           </div>
         ` : ''}
-      </a>
+      </div>
     `;
   }).join('');
 }
@@ -217,14 +211,19 @@ function renderRecommended(courses) {
   }
 
   wrap.classList.remove('hidden');
-  grid.innerHTML = courses.map((c) => `
-    <a href="course.php?slug=${encodeURIComponent(c.slug)}" class="group flex flex-col p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800/80 hover:border-indigo-500/40 transition-all duration-300 hover:-translate-y-1">
-      <div class="mb-4">${dashCoverImageHtml(c, 'bg-indigo-500/10 border border-indigo-500/20')}</div>
-      <h3 class="text-white font-bold text-base mb-1.5 leading-snug line-clamp-2">${dashEscape(c.title)}</h3>
-      <p class="text-xs text-slate-400 leading-relaxed mb-4 flex-1 line-clamp-2">${dashEscape(c.description || 'Belum ada deskripsi.')}</p>
-      <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">${c.module_count} Modul &middot; ${c.topic_count} Materi</p>
-    </a>
-  `).join('');
+  grid.innerHTML = courses.map((c) => {
+    // Simpan data objek course ke cache
+    dashboardCoursesMap.set(c.slug, c);
+
+    return `
+      <div onclick="triggerCourseModal('${dashEscape(c.slug)}')" class="cursor-pointer group flex flex-col p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800/80 hover:border-indigo-500/40 transition-all duration-300 hover:-translate-y-1">
+        <div class="mb-4">${dashCoverImageHtml(c, 'bg-indigo-500/10 border border-indigo-500/20')}</div>
+        <h3 class="text-white font-bold text-base mb-1.5 leading-snug line-clamp-2">${dashEscape(c.title)}</h3>
+        <p class="text-xs text-slate-400 leading-relaxed mb-4 flex-1 line-clamp-2">${dashEscape(c.description || 'Belum ada deskripsi.')}</p>
+        <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">${c.module_count} Modul &middot; ${c.topic_count} Materi</p>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderRecentActivity(activities) {
@@ -239,7 +238,7 @@ function renderRecentActivity(activities) {
 
   wrap.classList.remove('hidden');
   list.innerHTML = activities.map((a) => `
-    <a href="course.php?slug=${encodeURIComponent(a.course_slug)}" class="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-900/60 transition-colors group">
+    <div onclick="triggerCourseModal('${dashEscape(a.course_slug)}', '${dashEscape(a.topic_slug || a.topic_id)}')" class="cursor-pointer flex items-center gap-4 p-4 rounded-xl hover:bg-slate-900/60 transition-colors group">
       <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
       </div>
@@ -248,8 +247,38 @@ function renderRecentActivity(activities) {
         <p class="text-xs text-slate-500 truncate">${dashEscape(a.course_title)}</p>
       </div>
       <span class="text-[11px] text-slate-500 flex-shrink-0">${timeAgo(a.completed_at)}</span>
-    </a>
+    </div>
   `).join('');
+}
+
+// PERBAIKAN UTAMA: Selalu ambil objek course dari cache/katalog sebelum dipanggil modalnya
+function triggerCourseModal(courseSlug, topicSegment = '') {
+  let targetCourse = null;
+
+  // 1. Cari dari cache dashboard terlebih dahulu
+  if (dashboardCoursesMap.has(courseSlug)) {
+    targetCourse = dashboardCoursesMap.get(courseSlug);
+  } 
+  // 2. Jika tidak ada, cari di variabel allCourses milik katalog
+  else if (typeof allCourses !== 'undefined' && Array.isArray(allCourses)) {
+    targetCourse = allCourses.find(c => c.slug === courseSlug || c.id == courseSlug);
+  }
+
+  // 3. Panggil fungsi modal katalog dengan Objek Course Utuh
+  if (typeof openCourseDetailModal === 'function') {
+    if (targetCourse) {
+      openCourseDetailModal(targetCourse, topicSegment);
+    } else {
+      // Fallback jika course belum ter-load sama sekali
+      openCourseDetailModal({ slug: courseSlug }, topicSegment);
+    }
+  } else {
+    // Fallback URL jika modal script tidak dimuat
+    const destination = topicSegment 
+      ? `/digistack/${encodeURIComponent(courseSlug)}/${encodeURIComponent(topicSegment)}`
+      : `/digistack/${encodeURIComponent(courseSlug)}`;
+    window.location.href = destination;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

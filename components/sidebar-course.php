@@ -1,16 +1,16 @@
 <!-- components/sidebar-course.php -->
 <aside
   id="sidebar"
-  class="fixed inset-y-0 left-0 z-40 w-80 -translate-x-full transition-all duration-300 ease-in-out bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 lg:static lg:translate-x-0 flex flex-col overflow-hidden flex-shrink-0"
+  class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] -translate-x-full transition-transform duration-300 ease-in-out bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 lg:static lg:w-80 lg:max-w-none lg:translate-x-0 flex flex-col overflow-hidden flex-shrink-0"
   aria-label="Daftar modul course"
 >
   <!-- Sidebar Header -->
-  <div class="h-16 min-h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 overflow-hidden">
+  <div class="h-16 min-h-[4rem] px-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 overflow-hidden">
     <div id="sidebar-header-content" class="min-w-0 flex-1 sidebar-text">
       <span class="text-xs font-semibold text-blue-600 dark:text-blue-400 tracking-wider whitespace-nowrap block">
         Anda Sedang Membaca
       </span>
-      <h2 id="course-title" class="text-sm font-bold text-gray-800 dark:text-white">
+      <h2 id="course-title" class="text-sm font-bold text-gray-800 dark:text-white truncate">
         Memuat Kursus...
       </h2>
     </div>
@@ -29,9 +29,9 @@
   </div>
 </aside>
 
-<!-- Mobile overlay -->
+<!-- Mobile overlay (diselaraskan z-index agar menutup penuh saat dibuka) -->
 <div
   id="sidebar-overlay"
-  class="hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] lg:hidden"
+  class="hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity"
   aria-hidden="true"
 ></div>
